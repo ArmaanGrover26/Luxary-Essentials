@@ -6,11 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:admin": "node scripts/seedAdmin.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "jose": "^6.2.9",
     "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.7.0",
     "mongoose": "^9.2.3",
     "next": "16.1.6",
     "razorpay": "^2.9.6",

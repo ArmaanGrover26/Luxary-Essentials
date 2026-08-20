@@ -1,0 +1,25 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { type ReactNode } from "react";
+
+export default function ConditionalLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isAdmin = pathname.startsWith("/admin");
+
+  if (isAdmin) {
+    // Admin routes: render children as-is — the admin layout handles its own shell
+    return <>{children}</>;
+  }
+
+  // Storefront routes: wrap with Header + Footer
+  return (
+    <>
+      <Header />
+      <main>{children}</main>
+      <Footer />
+    </>
+  );
+}

@@ -136,19 +136,6 @@ export default function InstagramGallery() {
                 </div>
             </div>
 
-            <style jsx>{`
-        .gallery-grid {
-          display: grid;
-          grid-template-columns: repeat(6, 1fr);
-          gap: 0.75rem;
-        }
-        @media (max-width: 1024px) {
-          .gallery-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (max-width: 560px) {
-          .gallery-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-      `}</style>
         </section>
     );
 }

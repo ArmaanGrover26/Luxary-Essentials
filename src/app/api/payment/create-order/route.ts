@@ -10,10 +10,12 @@ import {
 } from "@/utils/apiResponse";
 import { createPaymentOrderSchema } from "@/utils/validators";
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+function getRazorpayClient() {
+    return new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_placeholder",
+        key_secret: process.env.RAZORPAY_KEY_SECRET || "razorpay_secret_placeholder",
+    });
+}
 
 // POST /api/payment/create-order
 // Creates a Razorpay order — called before checkout
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
         const { amount } = parsed.data;
 
         // Razorpay expects amount in paise (₹1 = 100 paise)
-        const razorpayOrder = await razorpay.orders.create({
+        const razorpayOrder = await getRazorpayClient().orders.create({
             amount: Math.round(amount * 100),
             currency: "INR",
             receipt: `receipt_${Date.now()}`,

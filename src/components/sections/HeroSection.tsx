@@ -60,19 +60,13 @@ export default function HeroSection() {
             />
 
             <div
+                className="hero-grid"
                 style={{
                     maxWidth: "1320px",
                     margin: "0 auto",
                     padding: "6rem 2rem",
                     width: "100%",
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "5rem",
-                    alignItems: "center",
-                    position: "relative",
-                    zIndex: 1,
                 }}
-                className="hero-grid"
             >
                 {/* Text */}
                 <div>
@@ -257,95 +251,19 @@ export default function HeroSection() {
                         </div>
                     </div>
 
-                    {/* Floating tag */}
-                    <div
-                        className="animate-slide-left delay-400"
-                        style={{
-                            position: "absolute",
-                            top: "2rem",
-                            right: "-2rem",
-                            background: "var(--charcoal)",
-                            color: "var(--gold-light)",
-                            padding: "1rem 1.25rem",
-                            borderRadius: "4px",
-                            textAlign: "center",
-                            boxShadow: "var(--shadow-card)",
-                        }}
-                    >
-                        <div
-                            className="font-serif"
-                            style={{ fontSize: "1.5rem", fontWeight: 300 }}
-                        >
-                            New
-                        </div>
-                        <div
-                            style={{
-                                fontFamily: "'Jost', sans-serif",
-                                fontSize: "0.6rem",
-                                letterSpacing: "0.2em",
-                                textTransform: "uppercase",
-                                opacity: 0.7,
-                            }}
-                        >
-                            Arrivals
-                        </div>
+{/* Floating tag — hidden on mobile via .hero-visual CSS class */}
+                    <div className="hero-visual animate-slide-left delay-400" style={{ position: "absolute", top: "2rem", right: "-2rem", background: "var(--charcoal)", color: "var(--gold-light)", padding: "1rem 1.25rem", borderRadius: "4px", textAlign: "center", boxShadow: "var(--shadow-card)" }}>
+                        <div className="font-serif" style={{ fontSize: "1.5rem", fontWeight: 300 }}>New</div>
+                        <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.6rem", letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.7 }}>Arrivals</div>
                     </div>
                 </div>
             </div>
 
-            {/* Scroll hint */}
-            <div
-                style={{
-                    position: "absolute",
-                    bottom: "2rem",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                }}
-            >
-                <span
-                    style={{
-                        fontFamily: "'Jost', sans-serif",
-                        fontSize: "0.65rem",
-                        letterSpacing: "0.2em",
-                        textTransform: "uppercase",
-                        color: "var(--light-gray)",
-                    }}
-                >
-                    Scroll
-                </span>
-                <div
-                    style={{
-                        width: "1px",
-                        height: "40px",
-                        background:
-                            "linear-gradient(180deg, var(--gold), transparent)",
-                        animation: "float 2s ease-in-out infinite",
-                    }}
-                />
+            {/* Scroll hint — hidden on mobile via .hero-visual CSS class */}
+            <div className="hero-visual" style={{ position: "absolute", bottom: "2rem", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--light-gray)" }}>Scroll</span>
+                <div style={{ width: "1px", height: "40px", background: "linear-gradient(180deg, var(--gold), transparent)", animation: "float 2s ease-in-out infinite" }} />
             </div>
-
-            <style jsx>{`
-        .hero-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 5rem;
-        }
-        @media (max-width: 900px) {
-          .hero-grid {
-            grid-template-columns: 1fr;
-            gap: 3rem;
-            text-align: center;
-          }
-          .hero-grid > div:first-child p { margin: 0 auto 2rem; }
-          .hero-grid > div:first-child > .animate-fade-up:nth-child(4) > div {
-            justify-content: center;
-          }
-        }
-      `}</style>
         </section>
     );
 }
