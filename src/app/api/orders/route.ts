@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { getAuthUser } from "@/lib/authMiddleware";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
+import User from "@/models/User";
 import {
     successResponse,
     errorResponse,
@@ -10,6 +11,7 @@ import {
     serverErrorResponse,
 } from "@/utils/apiResponse";
 import { orderSchema } from "@/utils/validators";
+import { sendOrderEmails } from "@/lib/emailService";
 
 // POST /api/orders — Authenticated users can place orders
 export async function POST(req: NextRequest) {
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
 
         // Validate stock and calculate total from DB prices (never trust client prices)
         let totalAmount = 0;
-        const validatedItems = [];
+        const validatedItems: Array<{ productId: unknown; quantity: number; price: number; name: string }> = [];
 
         for (const item of items) {
             const product = await Product.findById(item.productId);
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
                 productId: product._id,
                 quantity: item.quantity,
                 price: product.price, // Use server-side price
+                name: product.name,   // Keep for email
             });
         }
 
@@ -57,14 +60,35 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // Determine payment method from body (client sends paymentMethod: "cod" | "online")
+        const paymentMethod: "cod" | "online" = body.paymentMethod === "online" ? "online" : "cod";
+
         const order = await Order.create({
             userId: user.userId,
-            items: validatedItems,
+            items: validatedItems.map(({ productId, quantity, price }) => ({ productId, quantity, price })),
             totalAmount,
             shippingAddress,
             paymentStatus: "pending",
             orderStatus: "processing",
         });
+
+        // Fetch user details for email (name + email from DB)
+        const dbUser = await User.findById(user.userId).select("name email");
+
+        // Fire emails asynchronously — never block the order response
+        if (dbUser) {
+            sendOrderEmails({
+                orderId: String(order._id),
+                customerName: dbUser.name,
+                customerEmail: dbUser.email,
+                items: validatedItems.map(({ name, quantity, price }) => ({ name, quantity, price })),
+                totalAmount,
+                shippingAddress,
+                paymentMethod,
+            }).catch((err) => {
+                console.error("[Email] Failed to send order emails:", err);
+            });
+        }
 
         return successResponse(order, 201);
     } catch (err: unknown) {

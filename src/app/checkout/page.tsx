@@ -142,6 +142,7 @@ export default function CheckoutPage() {
           quantity: item.qty,
           price: item.price,
         })),
+        paymentMethod: "cod",
         shippingAddress: {
           name: `${addr.firstName} ${addr.lastName}`.trim(),
           phone: addr.phone,
@@ -237,9 +238,48 @@ export default function CheckoutPage() {
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.9rem", color: "var(--warm-gray)", lineHeight: 1.8, marginBottom: "0.5rem" }}>
                 Your order <strong style={{ color: "var(--charcoal)", fontFamily: "monospace" }}>#{confirmedOrder.id.slice(-6).toUpperCase()}</strong> has been placed successfully.
               </p>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "2rem" }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "1.5rem" }}>
                 Payment: <strong>Cash on Delivery</strong> · Total: <strong>₹{confirmedOrder.total.toLocaleString()}</strong>
               </p>
+
+              {/* Email confirmation notice banner */}
+              <div style={{
+                background: "#ffffff",
+                border: "1px solid var(--beige)",
+                borderRadius: "12px",
+                padding: "1.25rem 1.5rem",
+                marginBottom: "2rem",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "1rem",
+                textAlign: "left",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.04)"
+              }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  background: "rgba(184, 157, 114, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  marginTop: "2px"
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.88rem", fontWeight: 600, color: "var(--charcoal)", marginBottom: "0.25rem" }}>
+                    Order Placed Successfully!
+                  </div>
+                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--warm-gray)", margin: 0, lineHeight: 1.6 }}>
+                    Please check your registered email for order details and updates. <strong style={{ color: "#b45309" }}>Kindly check your spam/junk folder as well</strong> in case it landed there.
+                  </p>
+                </div>
+              </div>
 
               <div style={{ background: "var(--white)", border: "1px solid var(--beige)", borderRadius: "8px", padding: "1.5rem", marginBottom: "2.5rem", textAlign: "left" }}>
                 <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--gold)", marginBottom: "0.75rem" }}>Delivering to</div>
