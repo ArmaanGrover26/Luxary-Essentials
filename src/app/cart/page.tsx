@@ -1,18 +1,20 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CartPage() {
   const { items, updateQty, removeItem } = useCart();
+  const { user, loading: authLoading } = useAuth();
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const shipping = subtotal >= 999 ? 0 : 99;
-  const total = subtotal + shipping;
+  const total = subtotal;
 
   return (
     <main style={{ background: "var(--cream)", minHeight: "100vh" }}>
 
-      {/* ── Page Header ── */}
+      {/* Page Header */}
       <section style={{ background: "var(--charcoal)", padding: "4rem 1.5rem 3rem", textAlign: "center" }}>
         <div style={{ maxWidth: "600px", margin: "0 auto" }}>
           <span className="section-label" style={{ color: "var(--gold)" }}>Your Selection</span>
@@ -22,13 +24,12 @@ export default function CartPage() {
         </div>
       </section>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <section style={{ padding: "3rem 1.25rem 6rem" }}>
         <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
 
           {items.length === 0 ? (
-
-            /* ─── Empty state ─── */
+            /* Empty state */
             <div style={{ textAlign: "center", padding: "6rem 1.5rem" }}>
               <div style={{
                 width: "80px", height: "80px", borderRadius: "50%",
@@ -52,11 +53,10 @@ export default function CartPage() {
             </div>
 
           ) : (
-
-            /* ─── Cart layout ─── */
+            /* Cart layout */
             <div className="cart-page-layout">
 
-              {/* ── Left: Items ── */}
+              {/* Left: Items */}
               <div className="cart-items-col">
                 <h2 className="font-serif" style={{ fontSize: "1.25rem", fontWeight: 400, color: "var(--charcoal)", marginBottom: "1rem" }}>
                   {items.length} item{items.length !== 1 ? "s" : ""}
@@ -66,16 +66,26 @@ export default function CartPage() {
                   {items.map((item) => (
                     <div key={item.id} className="cart-item-card">
 
-                      {/* Product visual */}
+                      {/* Product image */}
                       <div style={{
-                        width: "72px", height: "72px", borderRadius: "6px", flexShrink: 0,
-                        background: `${item.color}22`, display: "flex", alignItems: "center", justifyContent: "center",
+                        width: "72px", height: "72px", borderRadius: "8px", flexShrink: 0,
+                        background: "var(--ivory)", border: "1px solid var(--beige)",
+                        overflow: "hidden", position: "relative",
+                        display: "flex", alignItems: "center", justifyContent: "center",
                       }}>
-                        <div style={{
-                          width: "42px", height: "42px", borderRadius: "50%",
-                          background: `radial-gradient(ellipse at 35% 35%, rgba(255,255,255,0.7), ${item.color}88)`,
-                          border: "1px solid rgba(255,255,255,0.5)",
-                        }} />
+                        {item.image ? (
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            sizes="72px"
+                            style={{ objectFit: "cover" }}
+                          />
+                        ) : (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--light-gray)" strokeWidth="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="m21 15-5-5L5 21"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                          </svg>
+                        )}
                       </div>
 
                       {/* Info */}
@@ -90,7 +100,7 @@ export default function CartPage() {
                           ₹{item.price.toLocaleString()} each
                         </div>
 
-                        {/* Qty + total on mobile (row) */}
+                        {/* Qty + total */}
                         <div className="cart-item-controls">
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                             <button onClick={() => updateQty(item.id, -1)} className="qty-btn" style={{ width: "30px", height: "30px" }}>−</button>
@@ -104,12 +114,15 @@ export default function CartPage() {
                       </div>
 
                       {/* Remove */}
-                      <button onClick={() => removeItem(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--light-gray)", padding: "4px", alignSelf: "flex-start", flexShrink: 0 }} aria-label="Remove">
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--light-gray)", padding: "4px", alignSelf: "flex-start", flexShrink: 0 }}
+                        aria-label="Remove"
+                      >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                       </button>
-
                     </div>
                   ))}
                 </div>
@@ -120,7 +133,7 @@ export default function CartPage() {
                 </Link>
               </div>
 
-              {/* ── Right: Order Summary ── */}
+              {/* Right: Order Summary */}
               <div className="cart-summary-col">
                 <div style={{ background: "var(--white)", borderRadius: "8px", border: "1px solid var(--beige)", padding: "1.75rem" }}>
                   <h2 className="font-serif" style={{ fontSize: "1.2rem", fontWeight: 400, color: "var(--charcoal)", marginBottom: "1.5rem" }}>
@@ -136,15 +149,8 @@ export default function CartPage() {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.83rem", color: "var(--warm-gray)" }}>Shipping</span>
-                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.83rem", color: shipping === 0 ? "#4caf50" : "var(--charcoal)" }}>
-                        {shipping === 0 ? "Free ✓" : `₹${shipping}`}
-                      </span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.83rem", color: "var(--warm-gray)" }}>Calculated at checkout</span>
                     </div>
-                    {shipping > 0 && (
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.72rem", color: "var(--light-gray)", background: "var(--ivory)", padding: "0.5rem 0.75rem", borderRadius: "4px" }}>
-                        Add ₹{(999 - subtotal).toLocaleString()} more for free shipping
-                      </p>
-                    )}
                   </div>
 
                   <hr style={{ border: "none", borderTop: "1px solid var(--beige)", marginBottom: "1.25rem" }} />
@@ -154,19 +160,45 @@ export default function CartPage() {
                     <span className="font-serif" style={{ fontSize: "1.2rem", color: "var(--charcoal)" }}>₹{total.toLocaleString()}</span>
                   </div>
 
-                  <Link href="/checkout" className="btn-gold" style={{ width: "100%", justifyContent: "center", fontSize: "0.82rem", padding: "1rem", display: "flex" }}>
-                    Proceed to Checkout
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                  </Link>
+                  {/* Auth gate */}
+                  {authLoading ? (
+                    <div style={{ width: "100%", padding: "1rem", textAlign: "center", fontFamily: "'Jost', sans-serif", fontSize: "0.8rem", color: "var(--warm-gray)" }}>
+                      Loading...
+                    </div>
+                  ) : user ? (
+                    <Link
+                      href="/checkout"
+                      className="btn-gold"
+                      style={{ width: "100%", justifyContent: "center", fontSize: "0.82rem", padding: "1rem", display: "flex" }}
+                    >
+                      Proceed to Checkout
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                    </Link>
+                  ) : (
+                    <div>
+                      <Link
+                        href="/login?redirect=/checkout"
+                        className="btn-gold"
+                        style={{ width: "100%", justifyContent: "center", fontSize: "0.82rem", padding: "1rem", display: "flex" }}
+                      >
+                        Login to Proceed
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                      </Link>
+                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.72rem", color: "var(--warm-gray)", textAlign: "center", marginTop: "0.75rem", lineHeight: 1.5 }}>
+                        Please login or{" "}
+                        <Link href="/register?redirect=/checkout" style={{ color: "var(--gold)", textDecoration: "none" }}>create an account</Link>
+                        {" "}to proceed with your order.
+                      </p>
+                    </div>
+                  )}
 
                   <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", marginTop: "1.25rem" }}>
-                    {["UPI", "Cards", "Razorpay"].map((m) => (
+                    {["UPI", "Cards", "COD"].map((m) => (
                       <span key={m} style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.68rem", color: "var(--light-gray)", letterSpacing: "0.08em", background: "var(--cream)", padding: "0.25rem 0.6rem", borderRadius: "3px" }}>{m}</span>
                     ))}
                   </div>
                 </div>
               </div>
-
             </div>
           )}
         </div>

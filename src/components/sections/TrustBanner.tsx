@@ -7,8 +7,8 @@ const features = [
         <path d="M5 12h14M12 5l7 7-7 7" />
       </svg>
     ),
-    title: "Free Shipping",
-    desc: "On all orders above ₹999",
+    title: "Secure Shopping",
+    desc: "Safe & encrypted checkout",
   },
   {
     icon: (
@@ -26,8 +26,8 @@ const features = [
         <polyline points="22,6 12,13 2,6" />
       </svg>
     ),
-    title: "Easy Returns",
-    desc: "7-day hassle-free returns",
+    title: "No Returns or Exchanges",
+    desc: "All sales are final",
   },
   {
     icon: (
@@ -36,8 +36,8 @@ const features = [
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
-    title: "Fast Delivery",
-    desc: "Delivered within 3–5 business days",
+    title: "Custom Orders",
+    desc: "Made with love just for you",
   },
 ];
 
