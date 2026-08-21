@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { getAdminUrl } from "@/config/adminConfig";
 
 function AdminLoginForm() {
   const searchParams = useSearchParams();
@@ -47,7 +48,7 @@ function AdminLoginForm() {
       }
 
       // Full page redirect so httpOnly cookie is sent through middleware
-      const from = searchParams.get("from") || "/admin";
+      const from = searchParams.get("from") || getAdminUrl();
       window.location.href = from;
     } catch {
       setError("An unexpected error occurred. Please try again.");

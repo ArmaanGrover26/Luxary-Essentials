@@ -15,16 +15,19 @@ import {
   ShieldCheck,
   ChevronRight,
 } from "lucide-react";
+import { ADMIN_SECRET_SLUG, getAdminUrl } from "@/config/adminConfig";
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
+const secretRoot = `/${ADMIN_SECRET_SLUG}`;
+
 const navItems = [
-  { label: "Dashboard", href: "/admin",          icon: LayoutDashboard },
-  { label: "Products",  href: "/admin/products", icon: Package },
-  { label: "Orders",    href: "/admin/orders",   icon: ShoppingBag },
-  { label: "Users",     href: "/admin/users",    icon: Users },
+  { label: "Dashboard", href: secretRoot,                  icon: LayoutDashboard },
+  { label: "Products",  href: `${secretRoot}/products`,     icon: Package },
+  { label: "Orders",    href: `${secretRoot}/orders`,       icon: ShoppingBag },
+  { label: "Users",     href: `${secretRoot}/users`,        icon: Users },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -32,20 +35,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Login page — bare shell, no sidebar
-  if (pathname === "/admin/login") {
+  if (pathname === "/admin/login" || pathname === `${secretRoot}/login`) {
     return <>{children}</>;
   }
 
   const handleLogout = () => {
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    window.location.href = "/admin/login";
+    window.location.href = getAdminUrl("/login");
   };
 
   const SidebarContent = () => (
     <>
       {/* Brand */}
       <div style={{ padding: "1.5rem 1.25rem 1rem", borderBottom: "1px solid #ede5d8" }}>
-        <Link href="/admin" style={{ textDecoration: "none" }} onClick={() => setMobileOpen(false)}>
+        <Link href={secretRoot} style={{ textDecoration: "none" }} onClick={() => setMobileOpen(false)}>
           <div style={{
             fontFamily: "'Cormorant Garamond', serif",
             fontSize: "1.5rem",
@@ -86,9 +89,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.href === "/admin"
-            ? pathname === "/admin"
-            : pathname.startsWith(item.href);
+          const isActive = item.href === secretRoot
+            ? pathname === secretRoot || pathname === "/admin"
+            : pathname.startsWith(item.href) || pathname.startsWith(item.href.replace(secretRoot, "/admin"));
 
           return (
             <Link
@@ -163,7 +166,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <>
-      {/* ─── Desktop layout: flex row with sidebar ─── */}
+      {/* Desktop layout: flex row with sidebar */}
       <div className="admin-shell">
 
         {/* Sidebar — desktop: always visible flex child */}
@@ -176,7 +179,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Mobile topbar */}
           <header className="admin-mobile-topbar">
-            <Link href="/admin" style={{
+            <Link href={secretRoot} style={{
               fontFamily: "'Cormorant Garamond', serif",
               fontSize: "1.4rem",
               color: "#2c2c2c",
@@ -209,7 +212,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </div>
 
-      {/* ─── Mobile sidebar drawer ─── */}
+      {/* Mobile sidebar drawer */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
@@ -238,7 +241,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       <style>{`
-        /* Shell: flex row for desktop sidebar + content */
         .admin-shell {
           display: flex;
           min-height: 100vh;
@@ -246,7 +248,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           font-family: 'Jost', sans-serif;
         }
 
-        /* Desktop sidebar — always visible flex item */
         .admin-sidebar-desktop {
           width: 240px;
           flex-shrink: 0;
@@ -261,7 +262,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           overflow-y: auto;
         }
 
-        /* Content area next to sidebar */
         .admin-content-area {
           flex: 1;
           min-width: 0;
@@ -269,7 +269,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           flex-direction: column;
         }
 
-        /* Mobile topbar — hidden on desktop */
         .admin-mobile-topbar {
           display: none;
           align-items: center;
@@ -282,7 +281,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           z-index: 30;
         }
 
-        /* Page content padding */
         .admin-page-content {
           flex: 1;
           padding: 2rem;
@@ -292,7 +290,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           box-sizing: border-box;
         }
 
-        /* Mobile sidebar drawer — hidden off-screen */
         .admin-sidebar-mobile {
           position: fixed;
           top: 0; left: 0;
@@ -305,24 +302,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           z-index: 100;
           transition: transform 0.3s ease;
           overflow-y: auto;
-          /* Hidden on desktop */
           visibility: hidden;
         }
 
         @media (max-width: 768px) {
-          /* Hide desktop sidebar */
           .admin-sidebar-desktop {
             display: none !important;
           }
-          /* Show mobile topbar */
           .admin-mobile-topbar {
             display: flex !important;
           }
-          /* Show mobile drawer */
           .admin-sidebar-mobile {
             visibility: visible;
           }
-          /* Adjust page content padding */
           .admin-page-content {
             padding: 1.25rem !important;
           }
