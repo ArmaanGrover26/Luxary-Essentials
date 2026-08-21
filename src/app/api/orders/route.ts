@@ -75,19 +75,21 @@ export async function POST(req: NextRequest) {
         // Fetch user details for email (name + email from DB)
         const dbUser = await User.findById(user.userId).select("name email");
 
-        // Fire emails asynchronously — never block the order response
+        // Send emails (awaiting ensures serverless platforms like Vercel don't kill the function before emails finish)
         if (dbUser) {
-            sendOrderEmails({
-                orderId: String(order._id),
-                customerName: dbUser.name,
-                customerEmail: dbUser.email,
-                items: validatedItems.map(({ name, quantity, price }) => ({ name, quantity, price })),
-                totalAmount,
-                shippingAddress,
-                paymentMethod,
-            }).catch((err) => {
+            try {
+                await sendOrderEmails({
+                    orderId: String(order._id),
+                    customerName: dbUser.name,
+                    customerEmail: dbUser.email,
+                    items: validatedItems.map(({ name, quantity, price }) => ({ name, quantity, price })),
+                    totalAmount,
+                    shippingAddress,
+                    paymentMethod,
+                });
+            } catch (err) {
                 console.error("[Email] Failed to send order emails:", err);
-            });
+            }
         }
 
         return successResponse(order, 201);

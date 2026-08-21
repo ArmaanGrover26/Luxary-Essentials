@@ -312,34 +312,34 @@ async function sendCustomerEmailViaBrevo(
 export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const shortId = `#${data.orderId.slice(-6).toUpperCase()}`;
 
-  // 1. Send Admin Email via Resend
+  // 1. Prepare Admin Email via Resend
   const isResendSet =
     process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== "re_placeholder";
 
-  if (isResendSet) {
-    const adminSubject = `🛍️ New ${data.paymentMethod.toUpperCase()} Order ${shortId} — ${data.customerName}`;
-    resend.emails
-      .send({
-        from: FROM_ADDRESS,
-        to: ADMIN_EMAIL,
-        subject: adminSubject,
-        html: adminHtml(data),
-      })
-      .then((res) => {
-        if (res.error) {
-          console.error("[Resend] ✗ Failed to send admin email:", res.error);
-        } else {
-          console.log(`[Resend] ✓ Admin notified for order ${shortId}`);
-        }
-      })
-      .catch((err) => {
-        console.error("[Resend] ✗ Error sending admin email:", err);
-      });
-  } else {
-    console.warn("[Resend] RESEND_API_KEY not set. Skipping admin email.");
-  }
+  const adminSubject = `🛍️ New ${data.paymentMethod.toUpperCase()} Order ${shortId} — ${data.customerName}`;
 
-  // 2. Send Customer Confirmation Email via Brevo (Sends to any customer email without custom domain)
+  const adminPromise = isResendSet
+    ? resend.emails
+        .send({
+          from: FROM_ADDRESS,
+          to: ADMIN_EMAIL,
+          subject: adminSubject,
+          html: adminHtml(data),
+        })
+        .then((res) => {
+          if (res.error) {
+            console.error("[Resend] ✗ Failed to send admin email:", res.error);
+          } else {
+            console.log(`[Resend] ✓ Admin notified for order ${shortId}`);
+          }
+        })
+        .catch((err) => {
+          console.error("[Resend] ✗ Error sending admin email:", err);
+        })
+    : (console.warn("[Resend] RESEND_API_KEY not set. Skipping admin email."),
+      Promise.resolve());
+
+  // 2. Prepare Customer Email via Brevo
   const userSubject =
     data.paymentMethod === "cod"
       ? `Your Order ${shortId} is Confirmed — ${BRAND_NAME}`
@@ -348,10 +348,13 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const userHtml =
     data.paymentMethod === "cod" ? userCodHtml(data) : userOnlineHtml(data);
 
-  await sendCustomerEmailViaBrevo(
+  const customerPromise = sendCustomerEmailViaBrevo(
     data.customerEmail,
     data.customerName,
     userSubject,
     userHtml
   );
+
+  // Await both promises concurrently so serverless runtimes don't cut them off
+  await Promise.allSettled([adminPromise, customerPromise]);
 }
