@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Filter,
 } from "lucide-react";
+import CloudinaryImageUploader from "@/components/CloudinaryImageUploader";
 
 interface ProductItem {
   _id: string;
@@ -52,7 +53,7 @@ function AdminProductsContent() {
     description: "",
     price: "",
     category: "resin" as "resin" | "candles" | "raw-materials" | "gifts",
-    imagesText: "",
+    images: [] as string[],
     stock: "",
   });
 
@@ -100,7 +101,7 @@ function AdminProductsContent() {
       description: "",
       price: "",
       category: "resin",
-      imagesText: "",
+      images: [],
       stock: "10",
     });
     setFormError(null);
@@ -114,7 +115,7 @@ function AdminProductsContent() {
       description: product.description,
       price: product.price.toString(),
       category: product.category,
-      imagesText: product.images.join("\n"),
+      images: product.images || [],
       stock: product.stock.toString(),
     });
     setFormError(null);
@@ -125,13 +126,8 @@ function AdminProductsContent() {
     e.preventDefault();
     setFormError(null);
 
-    const imagesList = formData.imagesText
-      .split(/[\n,]/)
-      .map((url) => url.trim())
-      .filter((url) => url.length > 0);
-
-    if (imagesList.length === 0) {
-      setFormError("At least one product image URL is required.");
+    if (formData.images.length === 0) {
+      setFormError("Please upload at least one product image.");
       return;
     }
 
@@ -140,7 +136,7 @@ function AdminProductsContent() {
       description: formData.description.trim(),
       price: Number(formData.price),
       category: formData.category,
-      images: imagesList,
+      images: formData.images,
       stock: Number(formData.stock),
     };
 
@@ -644,20 +640,13 @@ function AdminProductsContent() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "4px" }}>
-                  Image URLs (One per line or comma separated) *
+                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "8px" }}>
+                  Product Photos *
                 </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={formData.imagesText}
-                  onChange={(e) => setFormData({ ...formData, imagesText: e.target.value })}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  style={{
-                    width: "100%", padding: "0.6rem 0.9rem", background: "#faf7f2",
-                    border: "1px solid #ede5d8", borderRadius: "10px", fontSize: "0.8rem",
-                    color: "#2c2c2c", outline: "none", boxSizing: "border-box", fontFamily: "monospace",
-                  }}
+                <CloudinaryImageUploader
+                  images={formData.images}
+                  onChange={(urls) => setFormData((prev) => ({ ...prev, images: urls }))}
+                  maxImages={6}
                 />
               </div>
 
