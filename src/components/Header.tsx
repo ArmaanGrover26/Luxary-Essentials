@@ -13,6 +13,20 @@ export default function Header() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [activeFestival, setActiveFestival] = useState<{ name: string; bannerText?: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/festivals/active")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data && data.data.isActive) {
+          setActiveFestival({ name: data.data.name, bannerText: data.data.bannerText });
+        } else {
+          setActiveFestival(null);
+        }
+      })
+      .catch(() => setActiveFestival(null));
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -33,6 +47,7 @@ export default function Header() {
 
   const navLinks = [
     { label: "Shop", href: "/shop" },
+    ...(activeFestival ? [{ label: `✨ ${activeFestival.name}`, href: "/shop?category=festival-special" }] : []),
     { label: "Resin Kits", href: "/shop?cat=resin" },
     { label: "Candles", href: "/shop?cat=candles" },
     { label: "Raw Materials", href: "/shop?cat=raw" },
@@ -53,7 +68,25 @@ export default function Header() {
     <>
       {/* Announcement bar */}
       <div className="announcement-bar">
-        ✦ &nbsp; Handcrafted with love &nbsp; ✦
+        {activeFestival ? (
+          <Link
+            href="/shop?category=festival-special"
+            style={{
+              color: "inherit",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontWeight: 500,
+            }}
+          >
+            <span>✨</span>
+            <span>{activeFestival.bannerText || `Celebrate ${activeFestival.name} — Explore Festive Specials`}</span>
+            <span>✦</span>
+          </Link>
+        ) : (
+          <>✦ &nbsp; Handcrafted with love &nbsp; ✦</>
+        )}
       </div>
 
       <header

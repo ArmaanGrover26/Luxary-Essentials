@@ -14,6 +14,7 @@ import {
   X,
   ShieldCheck,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { ADMIN_SECRET_SLUG, getAdminUrl } from "@/config/adminConfig";
 
@@ -24,10 +25,11 @@ interface AdminLayoutProps {
 const secretRoot = `/${ADMIN_SECRET_SLUG}`;
 
 const navItems = [
-  { label: "Dashboard", href: secretRoot,                  icon: LayoutDashboard },
-  { label: "Products",  href: `${secretRoot}/products`,     icon: Package },
-  { label: "Orders",    href: `${secretRoot}/orders`,       icon: ShoppingBag },
-  { label: "Users",     href: `${secretRoot}/users`,        icon: Users },
+  { label: "Dashboard",         href: secretRoot,                  icon: LayoutDashboard },
+  { label: "Products",          href: `${secretRoot}/products`,     icon: Package },
+  { label: "Festival Specials", href: `${secretRoot}/festivals`,    icon: Sparkles },
+  { label: "Orders",            href: `${secretRoot}/orders`,       icon: ShoppingBag },
+  { label: "Users",             href: `${secretRoot}/users`,        icon: Users },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {

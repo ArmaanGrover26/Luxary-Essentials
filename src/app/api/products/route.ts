@@ -3,6 +3,7 @@ import type { SortOrder } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAdmin } from "@/lib/authMiddleware";
 import Product from "@/models/Product";
+import FestivalCategory from "@/models/FestivalCategory";
 import {
     successResponse,
     errorResponse,
@@ -11,6 +12,9 @@ import {
 } from "@/utils/apiResponse";
 import { productSchema } from "@/utils/validators";
 
+// Allowed sort fields — prevents SEC-006 unvalidated sort injection
+const ALLOWED_SORT_FIELDS = ["createdAt", "price", "name", "rating", "numReviews", "_id"];
+
 // GET /api/products — Public, with filtering/search/pagination
 export async function GET(req: NextRequest) {
     try {
@@ -18,18 +22,40 @@ export async function GET(req: NextRequest) {
 
         const { searchParams } = new URL(req.url);
         const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-        const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") ?? 12)));
+        // Allow up to 100 for the shop page; admin uses 10
+        const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 12)));
         const category = searchParams.get("category");
+        const festivalId = searchParams.get("festivalId");
         const search = searchParams.get("search");
         const minPrice = searchParams.get("minPrice");
         const maxPrice = searchParams.get("maxPrice");
-        const sortField = searchParams.get("sort") ?? "createdAt";
+
+        // SEC-006 fix: allowlist sort fields
+        const rawSort = searchParams.get("sort") ?? "createdAt";
+        const sortField = ALLOWED_SORT_FIELDS.includes(rawSort) ? rawSort : "createdAt";
         const sortOrder: SortOrder = searchParams.get("order") === "asc" ? 1 : -1;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const query: Record<string, any> = {};
 
-        if (category) query.category = category;
+        if (festivalId) {
+            const festival = await FestivalCategory.findById(festivalId);
+            query._id = { $in: festival?.products ?? [] };
+        } else if (category) {
+            if (category === "festival-special" || category.startsWith("festival")) {
+                const activeFestival = await FestivalCategory.findOne({ isActive: true });
+                query._id = { $in: activeFestival?.products ?? [] };
+            } else {
+                // Check if category matches active festival slug
+                const activeFestival = await FestivalCategory.findOne({ isActive: true, slug: category });
+                if (activeFestival) {
+                    query._id = { $in: activeFestival.products ?? [] };
+                } else {
+                    query.category = category;
+                }
+            }
+        }
+
         if (search) query.$text = { $search: search };
         if (minPrice || maxPrice) {
             query.price = {};
@@ -39,7 +65,8 @@ export async function GET(req: NextRequest) {
 
         const skip = (page - 1) * limit;
         const [products, total] = await Promise.all([
-            Product.find(query).sort({ [sortField]: sortOrder }).skip(skip).limit(limit),
+            // Secondary sort by _id ensures stable ordering for equal timestamps
+            Product.find(query).sort({ [sortField]: sortOrder, _id: sortOrder }).skip(skip).limit(limit),
             Product.countDocuments(query),
         ]);
 

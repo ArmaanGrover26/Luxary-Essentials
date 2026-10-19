@@ -15,23 +15,58 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Password is required"),
 });
 
+// ── Category enum ─────────────────────────────────────────────────────
+export const categoryEnum = z.enum([
+    "resin",
+    "candles",
+    "raw-materials",
+    "gifts",
+    "resin-art-pigments",
+    "silicon-moulds",
+    "charms-and-pearls",
+    "accessories",
+    "essentials",
+    "candle-moulds",
+    "candle-essentials",
+    "raw-material",
+]);
+
 // ── Product ──────────────────────────────────────────────────────────
-export const productSchema = z.object({
+export const baseProductSchema = z.object({
     name: z.string().min(2).max(200),
     description: z.string().min(10).max(2000),
-    price: z.number().positive("Price must be positive"),
-    category: z.enum(["resin", "candles", "raw-materials", "gifts"]),
+    price: z.number().nonnegative("Selling price must be non-negative"),
+    mrp: z.number().nonnegative("MRP must be non-negative").optional().nullable(),
+    category: categoryEnum,
     images: z.array(z.string().url()).min(1, "At least one image required"),
     stock: z.number().int().min(0, "Stock cannot be negative"),
 });
 
-export const updateProductSchema = productSchema.partial();
+export const productSchema = baseProductSchema.refine(
+    (data) => {
+        if (data.mrp != null && data.price > data.mrp) {
+            return false;
+        }
+        return true;
+    },
+    { message: "Selling price cannot exceed MRP", path: ["price"] }
+);
+
+export const updateProductSchema = baseProductSchema.partial().refine(
+    (data) => {
+        if (data.mrp != null && data.price != null && data.price > data.mrp) {
+            return false;
+        }
+        return true;
+    },
+    { message: "Selling price cannot exceed MRP", path: ["price"] }
+);
 
 // ── Order ────────────────────────────────────────────────────────────
 export const orderItemSchema = z.object({
     productId: z.string().min(1),
     quantity: z.number().int().positive(),
-    price: z.number().positive(),
+    price: z.number().nonnegative(),
 });
 
 export const shippingAddressSchema = z.object({
@@ -69,7 +104,32 @@ export const verifyPaymentSchema = z.object({
     orderId: z.string(), // Our DB order ID
 });
 
+// ── Festival Category ────────────────────────────────────────────────
+export const baseFestivalCategorySchema = z.object({
+    name: z.string().min(2, "Festival name must be at least 2 characters").max(100),
+    description: z.string().max(500),
+    bannerText: z.string().max(200),
+    badgeText: z.string().max(50),
+    isActive: z.boolean(),
+    products: z.array(z.string()),
+});
+
+export const festivalCategorySchema = z.object({
+    name: z.string().min(2, "Festival name must be at least 2 characters").max(100),
+    description: z.string().max(500).optional().default(""),
+    bannerText: z.string().max(200).optional().default(""),
+    badgeText: z.string().max(50).optional().default("Festival Special"),
+    isActive: z.boolean().optional().default(false),
+    products: z.array(z.string()).optional().default([]),
+});
+
+export const updateFestivalCategorySchema = baseFestivalCategorySchema.partial();
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ProductInput = z.infer<typeof productSchema>;
 export type OrderInput = z.infer<typeof orderSchema>;
+export type ProductCategory = z.infer<typeof categoryEnum>;
+export type FestivalCategoryInput = z.infer<typeof festivalCategorySchema>;
+export type UpdateFestivalCategoryInput = z.infer<typeof updateFestivalCategorySchema>;
+

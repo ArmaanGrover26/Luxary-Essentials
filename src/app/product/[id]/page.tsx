@@ -5,13 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { ShoppingBag, Star, Package, CheckCircle } from "lucide-react";
+import { getCategoryLabel } from "@/config/categories";
 
 interface DBProduct {
   _id: string;
   name: string;
   description: string;
   price: number;
-  category: "resin" | "candles" | "raw-materials" | "gifts";
+  mrp?: number | null;
+  category: string;
   images: string[];
   stock: number;
   rating: number;
@@ -90,6 +92,12 @@ export default function ProductDetailPage({
       maximumFractionDigits: 0,
     }).format(val);
   };
+
+  const hasDiscount =
+    product?.mrp != null && product.mrp > product.price;
+  const discountPct = hasDiscount
+    ? Math.round(((product!.mrp! - product!.price) / product!.mrp!) * 100)
+    : 0;
 
   if (loading) {
     return (
@@ -206,6 +214,26 @@ export default function ProductDetailPage({
                   <Package size={48} />
                 </div>
               )}
+
+              {/* Discount badge */}
+              {discountPct > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "1rem",
+                    left: "1rem",
+                    padding: "0.3rem 0.75rem",
+                    background: "#be123c",
+                    color: "white",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    borderRadius: "6px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  -{discountPct}% OFF
+                </div>
+              )}
             </div>
 
             {/* Thumbnail gallery */}
@@ -257,7 +285,7 @@ export default function ProductDetailPage({
                 marginBottom: "0.5rem",
               }}
             >
-              {product.category.replace("-", " ")}
+              {getCategoryLabel(product.category)}
             </span>
 
             <h1
@@ -300,16 +328,55 @@ export default function ProductDetailPage({
             </div>
 
             {/* Price */}
-            <div
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "2.2rem",
-                fontWeight: 600,
-                color: "var(--charcoal)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              {formatCurrency(product.price)}
+            <div style={{ marginBottom: "1.5rem" }}>
+              {hasDiscount ? (
+                <div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <span
+                      style={{
+                        fontFamily: "'Cormorant Garamond', serif",
+                        fontSize: "2.2rem",
+                        fontWeight: 600,
+                        color: "var(--charcoal)",
+                      }}
+                    >
+                      {formatCurrency(product.price)}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "'Jost', sans-serif",
+                        fontSize: "1.1rem",
+                        color: "var(--light-gray)",
+                        textDecoration: "line-through",
+                      }}
+                    >
+                      {formatCurrency(product.mrp!)}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "'Jost', sans-serif",
+                      fontSize: "0.8rem",
+                      color: "#be123c",
+                      fontWeight: 600,
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    You save {formatCurrency(product.mrp! - product.price)} ({discountPct}% off)
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontFamily: "'Cormorant Garamond', serif",
+                    fontSize: "2.2rem",
+                    fontWeight: 600,
+                    color: "var(--charcoal)",
+                  }}
+                >
+                  {formatCurrency(product.price)}
+                </div>
+              )}
             </div>
 
             <hr
@@ -359,7 +426,7 @@ export default function ProductDetailPage({
                 {product.stock > 5
                   ? "In Stock"
                   : product.stock > 0
-                  ? `Low Stock (${product.stock} units remaining)`
+                  ? `Only a Few Left (${product.stock} remaining)`
                   : "Out of Stock"}
               </span>
             </div>
@@ -445,6 +512,7 @@ export default function ProductDetailPage({
                   alignItems: "center",
                   gap: "8px",
                   transition: "background 0.3s ease",
+                  opacity: product.stock <= 0 ? 0.5 : 1,
                 }}
               >
                 {addedToCart ? (

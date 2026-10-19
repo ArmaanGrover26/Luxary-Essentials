@@ -1,10 +1,25 @@
 import { Schema, model, models, Document } from "mongoose";
 
+export type ProductCategory =
+    | "resin"
+    | "candles"
+    | "raw-materials"
+    | "gifts"
+    | "resin-art-pigments"
+    | "silicon-moulds"
+    | "charms-and-pearls"
+    | "accessories"
+    | "essentials"
+    | "candle-moulds"
+    | "candle-essentials"
+    | "raw-material";
+
 export interface IProduct extends Document {
     name: string;
     description: string;
     price: number;
-    category: "resin" | "candles" | "raw-materials" | "gifts";
+    mrp?: number;
+    category: ProductCategory;
     images: string[];
     stock: number;
     rating: number;
@@ -33,10 +48,28 @@ const ProductSchema = new Schema<IProduct>(
             required: [true, "Price is required"],
             min: [0, "Price cannot be negative"],
         },
+        mrp: {
+            type: Number,
+            min: [0, "MRP cannot be negative"],
+            default: null,
+        },
         category: {
             type: String,
             required: [true, "Category is required"],
-            enum: ["resin", "candles", "raw-materials", "gifts"],
+            enum: [
+                "resin",
+                "candles",
+                "raw-materials",
+                "gifts",
+                "resin-art-pigments",
+                "silicon-moulds",
+                "charms-and-pearls",
+                "accessories",
+                "essentials",
+                "candle-moulds",
+                "candle-essentials",
+                "raw-material",
+            ],
         },
         images: {
             type: [String],

@@ -16,19 +16,43 @@ import {
   Filter,
 } from "lucide-react";
 import CloudinaryImageUploader from "@/components/CloudinaryImageUploader";
+import { ORDERED_CATEGORIES, getCategoryLabel, type CategoryConfig } from "@/config/categories";
 
 interface ProductItem {
   _id: string;
   name: string;
   description: string;
   price: number;
-  category: "resin" | "candles" | "raw-materials" | "gifts";
+  mrp?: number | null;
+  category: string;
   images: string[];
   stock: number;
   rating: number;
   numReviews: number;
   createdAt: string;
 }
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "0.6rem 0.9rem",
+  background: "#faf7f2",
+  border: "1px solid #ede5d8",
+  borderRadius: "10px",
+  fontSize: "0.85rem",
+  color: "#2c2c2c",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "0.7rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.1em",
+  color: "#6b6560",
+  marginBottom: "4px",
+};
 
 function AdminProductsContent() {
   const searchParams = useSearchParams();
@@ -52,7 +76,8 @@ function AdminProductsContent() {
     name: "",
     description: "",
     price: "",
-    category: "resin" as "resin" | "candles" | "raw-materials" | "gifts",
+    mrp: "",
+    category: ORDERED_CATEGORIES[0].value,
     images: [] as string[],
     stock: "",
   });
@@ -67,6 +92,8 @@ function AdminProductsContent() {
       const query = new URLSearchParams();
       query.set("page", page.toString());
       query.set("limit", "10");
+      query.set("sort", "createdAt");
+      query.set("order", "desc");
       if (search) query.set("search", search);
       if (category) query.set("category", category);
 
@@ -92,6 +119,7 @@ function AdminProductsContent() {
     if (searchParams.get("action") === "new") {
       openAddModal();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const openAddModal = () => {
@@ -100,7 +128,8 @@ function AdminProductsContent() {
       name: "",
       description: "",
       price: "",
-      category: "resin",
+      mrp: "",
+      category: ORDERED_CATEGORIES[0].value,
       images: [],
       stock: "10",
     });
@@ -114,6 +143,7 @@ function AdminProductsContent() {
       name: product.name,
       description: product.description,
       price: product.price.toString(),
+      mrp: product.mrp != null ? product.mrp.toString() : "",
       category: product.category,
       images: product.images || [],
       stock: product.stock.toString(),
@@ -131,14 +161,37 @@ function AdminProductsContent() {
       return;
     }
 
-    const payload = {
+    const priceNum = Number(formData.price);
+    const mrpNum = formData.mrp.trim() !== "" ? Number(formData.mrp) : null;
+
+    if (isNaN(priceNum) || priceNum < 0) {
+      setFormError("Please enter a valid selling price.");
+      return;
+    }
+    if (mrpNum !== null && isNaN(mrpNum)) {
+      setFormError("Please enter a valid MRP.");
+      return;
+    }
+    if (mrpNum !== null && mrpNum < 0) {
+      setFormError("MRP cannot be negative.");
+      return;
+    }
+    if (mrpNum !== null && priceNum > mrpNum) {
+      setFormError("Selling price cannot exceed MRP.");
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
       name: formData.name.trim(),
       description: formData.description.trim(),
-      price: Number(formData.price),
+      price: priceNum,
       category: formData.category,
       images: formData.images,
       stock: Number(formData.stock),
     };
+    if (mrpNum !== null) {
+      payload.mrp = mrpNum;
+    }
 
     try {
       setIsSubmitting(true);
@@ -320,10 +373,9 @@ function AdminProductsContent() {
             }}
           >
             <option value="">All Categories</option>
-            <option value="resin">Resin Art</option>
-            <option value="candles">Hand-poured Candles</option>
-            <option value="raw-materials">Raw Materials</option>
-            <option value="gifts">Luxury Gifts</option>
+            {ORDERED_CATEGORIES.map((c: CategoryConfig) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -347,7 +399,7 @@ function AdminProductsContent() {
                 <tr style={{ background: "#faf7f2", borderBottom: "1px solid #ede5d8", color: "#a09990", fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>
                   <th style={{ padding: "0.75rem 1.25rem" }}>Product</th>
                   <th style={{ padding: "0.75rem 1.25rem" }}>Category</th>
-                  <th style={{ padding: "0.75rem 1.25rem" }}>Price</th>
+                  <th style={{ padding: "0.75rem 1.25rem" }}>Price / MRP</th>
                   <th style={{ padding: "0.75rem 1.25rem" }}>Stock</th>
                   <th style={{ padding: "0.75rem 1.25rem" }}>Status</th>
                   <th style={{ padding: "0.75rem 1.25rem", textAlign: "right" }}>Actions</th>
@@ -390,15 +442,23 @@ function AdminProductsContent() {
                     <td style={{ padding: "0.9rem 1.25rem" }}>
                       <span style={{
                         padding: "0.25rem 0.65rem", borderRadius: "8px", fontSize: "0.72rem",
-                        fontWeight: 600, textTransform: "capitalize", background: "#f5f0e8",
+                        fontWeight: 600, background: "#f5f0e8",
                         color: "#8b7355", border: "1px solid rgba(184,157,114,0.3)",
+                        whiteSpace: "nowrap",
                       }}>
-                        {prod.category.replace("-", " ")}
+                        {getCategoryLabel(prod.category)}
                       </span>
                     </td>
 
-                    <td style={{ padding: "0.9rem 1.25rem", fontWeight: 600, color: "#2c2c2c" }}>
-                      {formatCurrency(prod.price)}
+                    <td style={{ padding: "0.9rem 1.25rem" }}>
+                      <div style={{ fontWeight: 600, color: "#2c2c2c" }}>
+                        {formatCurrency(prod.price)}
+                      </div>
+                      {prod.mrp != null && prod.mrp > prod.price && (
+                        <div style={{ fontSize: "0.72rem", color: "#a09990", textDecoration: "line-through" }}>
+                          {formatCurrency(prod.mrp)}
+                        </div>
+                      )}
                     </td>
 
                     <td style={{ padding: "0.9rem 1.25rem", color: "#2c2c2c", fontWeight: 500 }}>
@@ -508,7 +568,7 @@ function AdminProductsContent() {
           display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
         }}>
           <div style={{
-            background: "#ffffff", width: "100%", maxWidth: "600px",
+            background: "#ffffff", width: "100%", maxWidth: "640px",
             borderRadius: "16px", border: "1px solid #ede5d8",
             boxShadow: "0 20px 40px rgba(0,0,0,0.15)", overflow: "hidden",
             display: "flex", flexDirection: "column", maxHeight: "90vh",
@@ -537,29 +597,36 @@ function AdminProductsContent() {
                 </div>
               )}
 
+              {/* Product Name */}
               <div>
-                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "4px" }}>
-                  Product Name *
-                </label>
+                <label style={labelStyle}>Product Name *</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Royal Gold Resin Tray"
-                  style={{
-                    width: "100%", padding: "0.6rem 0.9rem", background: "#faf7f2",
-                    border: "1px solid #ede5d8", borderRadius: "10px", fontSize: "0.85rem",
-                    color: "#2c2c2c", outline: "none", boxSizing: "border-box",
-                  }}
+                  style={inputStyle}
                 />
               </div>
 
+              {/* Price row: MRP + Selling Price + Stock */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "4px" }}>
-                    Price (INR ₹) *
-                  </label>
+                  <label style={labelStyle}>MRP (₹) <span style={{ color: "#a09990", fontWeight: 400 }}>(optional)</span></label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.mrp}
+                    onChange={(e) => setFormData({ ...formData, mrp: e.target.value })}
+                    placeholder="1999"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Our Price (₹) *</label>
                   <input
                     type="number"
                     min="0"
@@ -568,43 +635,12 @@ function AdminProductsContent() {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="1299"
-                    style={{
-                      width: "100%", padding: "0.6rem 0.9rem", background: "#faf7f2",
-                      border: "1px solid #ede5d8", borderRadius: "10px", fontSize: "0.85rem",
-                      color: "#2c2c2c", outline: "none", boxSizing: "border-box",
-                    }}
+                    style={inputStyle}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "4px" }}>
-                    Category *
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        category: e.target.value as "resin" | "candles" | "raw-materials" | "gifts",
-                      })
-                    }
-                    style={{
-                      width: "100%", padding: "0.6rem 0.9rem", background: "#faf7f2",
-                      border: "1px solid #ede5d8", borderRadius: "10px", fontSize: "0.85rem",
-                      color: "#2c2c2c", outline: "none", boxSizing: "border-box", cursor: "pointer",
-                    }}
-                  >
-                    <option value="resin">Resin Art</option>
-                    <option value="candles">Candles</option>
-                    <option value="raw-materials">Raw Materials</option>
-                    <option value="gifts">Luxury Gifts</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "4px" }}>
-                    Stock Quantity *
-                  </label>
+                  <label style={labelStyle}>Stock Qty *</label>
                   <input
                     type="number"
                     min="0"
@@ -612,37 +648,55 @@ function AdminProductsContent() {
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     placeholder="15"
-                    style={{
-                      width: "100%", padding: "0.6rem 0.9rem", background: "#faf7f2",
-                      border: "1px solid #ede5d8", borderRadius: "10px", fontSize: "0.85rem",
-                      color: "#2c2c2c", outline: "none", boxSizing: "border-box",
-                    }}
+                    style={inputStyle}
                   />
                 </div>
               </div>
 
+              {/* Price hint */}
+              {formData.mrp && formData.price && Number(formData.mrp) > Number(formData.price) && (
+                <div style={{
+                  padding: "0.5rem 0.75rem",
+                  background: "#f0fdf4",
+                  border: "1px solid #a7f3d0",
+                  borderRadius: "8px",
+                  fontSize: "0.75rem",
+                  color: "#047857",
+                }}>
+                  ✓ Discount: {Math.round(((Number(formData.mrp) - Number(formData.price)) / Number(formData.mrp)) * 100)}% off MRP
+                </div>
+              )}
+
+              {/* Category */}
               <div>
-                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "4px" }}>
-                  Description *
-                </label>
+                <label style={labelStyle}>Category *</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                >
+                  {ORDERED_CATEGORIES.map((c: CategoryConfig) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={labelStyle}>Description *</label>
                 <textarea
                   rows={3}
                   required
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Crafted with high-grade epoxy resin and metallic leaf pigments..."
-                  style={{
-                    width: "100%", padding: "0.6rem 0.9rem", background: "#faf7f2",
-                    border: "1px solid #ede5d8", borderRadius: "10px", fontSize: "0.85rem",
-                    color: "#2c2c2c", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
-                  }}
+                  style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
                 />
               </div>
 
+              {/* Images */}
               <div>
-                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6560", marginBottom: "8px" }}>
-                  Product Photos *
-                </label>
+                <label style={{ ...labelStyle, marginBottom: "8px" }}>Product Photos *</label>
                 <CloudinaryImageUploader
                   images={formData.images}
                   onChange={(urls) => setFormData((prev) => ({ ...prev, images: urls }))}

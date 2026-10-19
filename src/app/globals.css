@@ -765,6 +765,20 @@ body {
   gap: 1.75rem;
 }
 
+/* Shop page product grid (auto-fill for flexibility) */
+.shop-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.product-card-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Categories */
 .cat-grid {
   display: grid;
@@ -810,8 +824,9 @@ body {
 
 /* Large tablet */
 @media (max-width: 1024px) {
-  .products-grid { grid-template-columns: repeat(2, 1fr); }
-  .gallery-grid  { grid-template-columns: repeat(3, 1fr); }
+  .products-grid      { grid-template-columns: repeat(2, 1fr); }
+  .shop-product-grid  { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .gallery-grid       { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* Tablet / small desktop */
@@ -846,8 +861,52 @@ body {
   }
 
   /* Grids */
-  .cat-grid     { grid-template-columns: 1fr; }
-  .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+  .products-grid     { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
+  .shop-product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
+  .cat-grid          { grid-template-columns: 1fr; }
+  .gallery-grid      { grid-template-columns: repeat(2, 1fr); }
+
+  /* Product grid sections & card sizing on mobile */
+  .shop-products-section,
+  .featured-products-section {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .section-header-row {
+    margin-bottom: 1.5rem !important;
+  }
+  .shop-count-text {
+    margin-bottom: 1rem !important;
+  }
+  .product-card {
+    border-radius: 8px !important;
+  }
+  .product-card-skeleton {
+    height: 290px !important;
+    border-radius: 8px !important;
+  }
+  .product-card-body {
+    padding: 0.625rem 0.5rem !important;
+  }
+  .product-card-desc {
+    display: none !important;
+  }
+  .product-card-title {
+    min-height: 2.2rem;
+  }
+  .product-card-rating {
+    margin-bottom: 0.35rem !important;
+  }
+  .product-card-footer {
+    padding-top: 0.45rem !important;
+  }
+  .product-card-price {
+    margin-bottom: 0.45rem !important;
+  }
+  .product-card-btn {
+    padding: 0.45rem 0.35rem !important;
+    border-radius: 6px !important;
+  }
 
   /* Cart: stack items above summary on mobile */
   .cart-page-layout {
@@ -884,9 +943,48 @@ body {
 
 /* Small phones */
 @media (max-width: 560px) {
-  .products-grid { grid-template-columns: 1fr; }
-  .cat-grid      { grid-template-columns: 1fr; }
-  .footer-grid   { grid-template-columns: 1fr; gap: 2rem; }
-  .trust-grid    { grid-template-columns: 1fr; }
-  .checkout-2col { grid-template-columns: 1fr; gap: 1rem; }
+  /* Keep product grids at 2 columns on small phones matching mobile reference */
+  .products-grid     { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem !important; }
+  .shop-product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem !important; }
+  .cat-grid          { grid-template-columns: 1fr; }
+  .footer-grid       { grid-template-columns: 1fr; gap: 2rem; }
+  .trust-grid        { grid-template-columns: 1fr; }
+  .checkout-2col     { grid-template-columns: 1fr; gap: 1rem; }
+
+  .shop-products-section,
+  .featured-products-section {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .shop-count-text {
+    margin-bottom: 0.75rem !important;
+  }
+  .product-card {
+    border-radius: 8px !important;
+  }
+  .product-card-skeleton {
+    height: 250px !important;
+    border-radius: 8px !important;
+  }
+  .product-card-body {
+    padding: 0.45rem !important;
+  }
+  .product-card-title {
+    margin-top: 0.1rem !important;
+    margin-bottom: 0.2rem !important;
+    min-height: 2.05rem;
+  }
+  .product-card-rating {
+    display: none !important;
+  }
+  .product-card-footer {
+    padding-top: 0.35rem !important;
+  }
+  .product-card-price {
+    margin-bottom: 0.35rem !important;
+  }
+  .product-card-btn {
+    padding: 0.4rem 0.25rem !important;
+    border-radius: 6px !important;
+  }
 }
