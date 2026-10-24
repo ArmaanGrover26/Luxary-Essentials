@@ -32,6 +32,11 @@ export const ALL_CATEGORY_VALUES = ORDERED_CATEGORIES.map((c) => c.value);
 
 /** Get the human-readable label for a category value. */
 export function getCategoryLabel(value: string): string {
+    if (!value) return "";
     const found = ORDERED_CATEGORIES.find((c) => c.value === value);
-    return found ? found.label : value.replace(/-/g, " ");
+    if (found) return found.label;
+    return value
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 }

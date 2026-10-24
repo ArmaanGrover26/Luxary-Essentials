@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireAdmin } from "@/lib/authMiddleware";
 import Product from "@/models/Product";
@@ -10,21 +11,52 @@ import {
     serverErrorResponse,
 } from "@/utils/apiResponse";
 import { updateProductSchema } from "@/utils/validators";
+import { isRequestAdmin, sanitizeProductForPublic } from "@/lib/inventoryUtils";
 
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/products/[id] — Public
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
     try {
         await connectDB();
         const { id } = await params;
-        const product = await Product.findById(id);
+
+        if (!id || typeof id !== "string") {
+            return notFoundResponse("Product not found");
+        }
+
+        const trimmedId = id.trim();
+        let product = null;
+
+        // 1. Try finding by ObjectId
+        if (mongoose.Types.ObjectId.isValid(trimmedId)) {
+            product = await Product.findById(trimmedId);
+        }
+
+        // 2. Fallback: Try finding by unique name or slug (hyphens replaced with spaces)
+        if (!product) {
+            const decoded = decodeURIComponent(trimmedId);
+            const asName = decoded.replace(/-/g, " ");
+            product = await Product.findOne({
+                $or: [
+                    { name: { $regex: new RegExp(`^${escapeRegex(decoded)}$`, "i") } },
+                    { name: { $regex: new RegExp(`^${escapeRegex(asName)}$`, "i") } },
+                ],
+            });
+        }
+
         if (!product) return notFoundResponse("Product not found");
-        return successResponse(product);
+
+        const isAdmin = await isRequestAdmin(req);
+        return successResponse(sanitizeProductForPublic(product, isAdmin));
     } catch (err) {
         console.error("[GET /api/products/[id]]", err);
         return serverErrorResponse();
     }
+}
+
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // PUT /api/products/[id] — Admin only
@@ -34,6 +66,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
         await connectDB();
 
         const { id } = await params;
+        if (!id || !mongoose.Types.ObjectId.isValid(id.trim())) {
+            return notFoundResponse("Product not found");
+        }
+
         const body = await req.json();
         const parsed = updateProductSchema.safeParse(body);
 
@@ -44,7 +80,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         }
 
         const product = await Product.findByIdAndUpdate(
-            id,
+            id.trim(),
             { $set: parsed.data },
             { new: true, runValidators: true }
         );
@@ -72,7 +108,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         await connectDB();
 
         const { id } = await params;
-        const product = await Product.findByIdAndDelete(id);
+        if (!id || !mongoose.Types.ObjectId.isValid(id.trim())) {
+            return notFoundResponse("Product not found");
+        }
+
+        const product = await Product.findByIdAndDelete(id.trim());
         if (!product) return notFoundResponse("Product not found");
 
         return successResponse({ message: "Product deleted successfully" });

@@ -988,3 +988,33 @@ body {
     border-radius: 6px !important;
   }
 }
+
+/* ── Sleek Category Tabs Scrollbar (Comfortable & Easy to Grab) ───────────── */
+.shop-category-tabs-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.shop-category-tabs-scroll::-webkit-scrollbar {
+  height: 10px !important;
+}
+
+.shop-category-tabs-scroll::-webkit-scrollbar-track {
+  background: #f0ebe1 !important;
+  border-radius: 9999px !important;
+}
+
+.shop-category-tabs-scroll::-webkit-scrollbar-thumb {
+  background: #c5ad89 !important;
+  border-radius: 9999px !important;
+  cursor: grab !important;
+}
+
+.shop-category-tabs-scroll::-webkit-scrollbar-thumb:hover {
+  background: #8b7355 !important;
+}
+
+.shop-category-tabs-scroll::-webkit-scrollbar-thumb:active {
+  cursor: grabbing !important;
+  background: #6e593f !important;
+}

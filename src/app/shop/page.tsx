@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { ShoppingBag, Heart, Star, Package, Sparkles } from "lucide-react";
+import { ShoppingBag, Star, Package, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { ORDERED_CATEGORIES, getCategoryLabel } from "@/config/categories";
+import ProductCardImage from "@/components/ui/ProductCardImage";
+import FavoriteButton from "@/components/ui/FavoriteButton";
 
 interface DBProduct {
   _id: string;
@@ -17,6 +19,9 @@ interface DBProduct {
   category: string;
   images: string[];
   stock: number;
+  stockStatus?: "in_stock" | "low_stock" | "out_of_stock";
+  inStock?: boolean;
+  maxPurchasable?: number;
   rating: number;
   numReviews: number;
 }
@@ -47,14 +52,14 @@ function Stars({ rating }: { rating: number }) {
 }
 
 function ShopPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<DBProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("");
   const [activeFestival, setActiveFestival] = useState<ActiveFestival | null>(null);
-  const [wished, setWished] = useState<string[]>([]);
   const [addedIds, setAddedIds] = useState<string[]>([]);
-  const { addToCart } = useCart();
+  const { addToCart, getItemCartQty, setCartNotification } = useCart();
 
   // Load active festival (if any)
   useEffect(() => {
@@ -91,6 +96,71 @@ function ShopPageContent() {
     }
   }, [searchParams, activeFestival]);
 
+  // Dynamic categories state initialized with static list for instant render
+  const [dynamicCategories, setDynamicCategories] = useState<{ label: string; value: string }[]>(
+    ORDERED_CATEGORIES.map((c) => ({ label: c.label, value: c.value }))
+  );
+
+  // Fetch dynamic categories from database
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setDynamicCategories(
+            data.data.map((c: { name: string; slug: string }) => ({
+              label: c.name,
+              value: c.slug,
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error("Failed to load dynamic categories", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Category horizontal scroll controls
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = useCallback(() => {
+    if (tabsRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+      setCanScrollLeft(scrollLeft > 5);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [checkScroll, dynamicCategories]);
+
+  const handleScroll = (direction: "left" | "right") => {
+    if (tabsRef.current) {
+      const amount = direction === "left" ? -280 : 280;
+      tabsRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (tabsRef.current && e.deltaY !== 0) {
+      tabsRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
   // Construct dynamic category tabs (integrates active festival tab if active)
   const tabs = useMemo(() => {
     const list: { label: string; value: string; isFestival?: boolean; badge?: string }[] = [
@@ -106,12 +176,12 @@ function ShopPageContent() {
       });
     }
 
-    ORDERED_CATEGORIES.forEach((c) => {
+    dynamicCategories.forEach((c) => {
       list.push({ label: c.label, value: c.value, isFestival: false });
     });
 
     return list;
-  }, [activeFestival]);
+  }, [activeFestival, dynamicCategories]);
 
   // Fetch products based on active category
   const fetchProducts = useCallback(async () => {
@@ -142,25 +212,38 @@ function ShopPageContent() {
     fetchProducts();
   }, [fetchProducts]);
 
-  const toggleWish = (id: string) => {
-    setWished((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
   const handleAddToCart = (p: DBProduct) => {
-    addToCart({
-      id: p._id,
-      name: p.name,
-      category: p.category,
-      price: p.price,
-      image: p.images[0] || "",
-    });
-    setAddedIds((prev) => [...prev, p._id]);
-    setTimeout(
-      () => setAddedIds((prev) => prev.filter((x) => x !== p._id)),
-      1500
+    const currentInCart = getItemCartQty(p._id);
+    const maxAllowed = typeof p.maxPurchasable === "number"
+      ? p.maxPurchasable
+      : (p.inStock === false ? 0 : 10);
+
+    if (maxAllowed <= 0 || currentInCart >= maxAllowed) {
+      setCartNotification("You've reached the available quantity for this item.");
+      return;
+    }
+
+    const result = addToCart(
+      {
+        id: p._id,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        image: p.images[0] || "",
+        maxPurchasable: p.maxPurchasable,
+        inStock: p.inStock,
+        stockStatus: p.stockStatus,
+      },
+      1
     );
+
+    if (result.success) {
+      setAddedIds((prev) => [...prev, p._id]);
+      setTimeout(
+        () => setAddedIds((prev) => prev.filter((x) => x !== p._id)),
+        1500
+      );
+    }
   };
 
   const formatCurrency = (val: number) => {
@@ -238,12 +321,49 @@ function ShopPageContent() {
           style={{
             maxWidth: "1320px",
             margin: "0 auto",
-            padding: "0 1.5rem",
+            position: "relative",
             display: "flex",
-            gap: 0,
-            overflowX: "auto",
+            alignItems: "center",
           }}
         >
+          {canScrollLeft && (
+            <button
+              onClick={() => handleScroll("left")}
+              aria-label="Scroll left"
+              style={{
+                position: "absolute",
+                left: "8px",
+                zIndex: 12,
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                background: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid var(--beige)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--charcoal)",
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
+
+          <div
+            ref={tabsRef}
+            onWheel={handleWheel}
+            className="shop-category-tabs-scroll"
+            style={{
+              flex: 1,
+              maxWidth: "1320px",
+              padding: "0 1.5rem",
+              display: "flex",
+              gap: 0,
+              overflowX: "auto",
+            }}
+          >
           {tabs.map((tab) => {
             const isCurrent = activeCategory === tab.value;
             const isFest = tab.isFestival;
@@ -294,6 +414,32 @@ function ShopPageContent() {
               </button>
             );
           })}
+          </div>
+
+          {canScrollRight && (
+            <button
+              onClick={() => handleScroll("right")}
+              aria-label="Scroll right"
+              style={{
+                position: "absolute",
+                right: "8px",
+                zIndex: 12,
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                background: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid var(--beige)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--charcoal)",
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -395,6 +541,7 @@ function ShopPageContent() {
                   <div
                     key={p._id}
                     className="product-card"
+                    onClick={() => router.push(`/product/${p._id}`)}
                     style={{
                       background: "var(--white)",
                       borderRadius: "12px",
@@ -405,114 +552,78 @@ function ShopPageContent() {
                       justifyContent: "space-between",
                       transition: "all 0.3s ease",
                       boxShadow: "var(--shadow-card)",
+                      cursor: "pointer",
                     }}
                   >
                     {/* Image Container */}
-                    <Link href={`/product/${p._id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                      <div
-                        style={{
-                          position: "relative",
-                          aspectRatio: "1/1",
-                          background: "var(--ivory)",
-                          overflow: "hidden",
-                        }}
+                    <div
+                      style={{
+                        position: "relative",
+                        aspectRatio: "1/1",
+                        background: "var(--ivory)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Link
+                        href={`/product/${p._id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: "block", width: "100%", height: "100%", position: "relative" }}
                       >
-                        {p.images && p.images[0] ? (
-                          <Image
-                            src={p.images[0]}
-                            alt={p.name}
-                            fill
-                            sizes="(max-width: 560px) 50vw, (max-width: 768px) 50vw, 300px"
-                            style={{ objectFit: "cover" }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: "var(--light-gray)",
-                            }}
-                          >
-                            <Package size={36} />
-                          </div>
-                        )}
+                        <ProductCardImage
+                          images={p.images}
+                          alt={p.name}
+                          sizes="(max-width: 560px) 50vw, (max-width: 768px) 50vw, 300px"
+                        />
+                      </Link>
 
-                        {/* Discount badge */}
-                        {disc > 0 && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "0.6rem",
-                              left: "0.6rem",
-                              padding: "0.2rem 0.5rem",
-                              background: "#be123c",
-                              color: "white",
-                              fontSize: "0.6rem",
-                              letterSpacing: "0.06em",
-                              fontWeight: 700,
-                              borderRadius: "4px",
-                            }}
-                          >
-                            -{disc}%
-                          </div>
-                        )}
-
-                        {/* Low Stock badge */}
-                        {p.stock <= 5 && p.stock > 0 && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: disc > 0 ? "2.1rem" : "0.6rem",
-                              left: "0.6rem",
-                              padding: "0.2rem 0.5rem",
-                              background: "#c1956a",
-                              color: "white",
-                              fontSize: "0.6rem",
-                              letterSpacing: "0.08em",
-                              textTransform: "uppercase",
-                              borderRadius: "4px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Only a Few Left
-                          </div>
-                        )}
-
-                        {/* Wishlist Button */}
-                        <button
-                          onClick={(e) => { e.preventDefault(); toggleWish(p._id); }}
+                      {/* Discount badge */}
+                      {disc > 0 && (
+                        <div
                           style={{
                             position: "absolute",
                             top: "0.6rem",
-                            right: "0.6rem",
-                            width: "30px",
-                            height: "30px",
-                            borderRadius: "50%",
-                            background: "rgba(255,255,255,0.9)",
-                            border: "none",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            left: "0.6rem",
+                            padding: "0.2rem 0.5rem",
+                            background: "#be123c",
+                            color: "white",
+                            fontSize: "0.6rem",
+                            letterSpacing: "0.06em",
+                            fontWeight: 700,
+                            borderRadius: "4px",
+                            pointerEvents: "none",
+                            zIndex: 1,
                           }}
-                          aria-label="Wishlist"
                         >
-                          <Heart
-                            size={13}
-                            fill={wished.includes(p._id) ? "var(--gold)" : "none"}
-                            color={
-                              wished.includes(p._id)
-                                ? "var(--gold)"
-                                : "var(--charcoal)"
-                            }
-                          />
-                        </button>
-                      </div>
-                    </Link>
+                          -{disc}%
+                        </div>
+                      )}
+
+                      {/* Low Stock badge */}
+                      {p.stockStatus === "low_stock" && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: disc > 0 ? "2.1rem" : "0.6rem",
+                            left: "0.6rem",
+                            padding: "0.2rem 0.5rem",
+                            background: "#c1956a",
+                            color: "white",
+                            fontSize: "0.6rem",
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            borderRadius: "4px",
+                            fontWeight: 600,
+                            pointerEvents: "none",
+                            zIndex: 1,
+                          }}
+                        >
+                          Only a Few Left
+                        </div>
+                      )}
+
+                      {/* Wishlist Button */}
+                      <FavoriteButton productId={p._id} size="sm" />
+                    </div>
 
                     {/* Card Content */}
                     <div
@@ -539,7 +650,11 @@ function ShopPageContent() {
                         >
                           {getCategoryLabel(p.category)}
                         </span>
-                        <Link href={`/product/${p._id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                        <Link
+                          href={`/product/${p._id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ textDecoration: "none", color: "inherit" }}
+                        >
                           <h3
                             className="font-serif product-card-title"
                             style={{
@@ -642,8 +757,8 @@ function ShopPageContent() {
                           )}
                         </div>
 
-                        {/* Out of stock indicator */}
-                        {p.stock === 0 ? (
+                        {/* Out of stock or limit reached indicator */}
+                        {p.stockStatus === "out_of_stock" || (p.maxPurchasable ?? p.stock) <= 0 ? (
                           <div
                             className="product-card-btn"
                             style={{
@@ -664,7 +779,12 @@ function ShopPageContent() {
                         ) : (
                           <button
                             className="product-card-btn"
-                            onClick={() => handleAddToCart(p)}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleAddToCart(p);
+                            }}
                             style={{
                               width: "100%",
                               fontSize: "0.72rem",
@@ -673,6 +793,8 @@ function ShopPageContent() {
                               border: "none",
                               background: addedIds.includes(p._id)
                                 ? "var(--gold)"
+                                : getItemCartQty(p._id) >= (p.maxPurchasable ?? 10)
+                                ? "rgba(44, 44, 44, 0.7)"
                                 : "var(--charcoal)",
                               color: "white",
                               cursor: "pointer",
@@ -687,7 +809,11 @@ function ShopPageContent() {
                           >
                             <ShoppingBag size={13} />
                             <span>
-                              {addedIds.includes(p._id) ? "Added ✓" : "Add to Cart"}
+                              {addedIds.includes(p._id)
+                                ? "Added ✓"
+                                : getItemCartQty(p._id) >= (p.maxPurchasable ?? 10)
+                                ? "Limit in Cart"
+                                : "Add to Cart"}
                             </span>
                           </button>
                         )}

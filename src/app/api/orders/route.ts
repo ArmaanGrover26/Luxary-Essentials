@@ -30,34 +30,52 @@ export async function POST(req: NextRequest) {
 
         const { items, shippingAddress } = parsed.data;
 
-        // Validate stock and calculate total from DB prices (never trust client prices)
+        // Validate products and DB prices
         let totalAmount = 0;
-        const validatedItems: Array<{ productId: unknown; quantity: number; price: number; name: string }> = [];
+        const validatedItems: Array<{ productId: any; quantity: number; price: number; name: string }> = [];
 
         for (const item of items) {
             const product = await Product.findById(item.productId);
             if (!product) {
-                return errorResponse(`Product ${item.productId} not found`, 404);
+                return errorResponse(`Product is no longer available`, 404);
             }
             if (product.stock < item.quantity) {
                 return errorResponse(
-                    `Insufficient stock for "${product.name}". Available: ${product.stock}`
+                    `"${product.name}" does not have sufficient quantity available. Please update your cart.`,
+                    409
                 );
             }
             totalAmount += product.price * item.quantity;
             validatedItems.push({
                 productId: product._id,
                 quantity: item.quantity,
-                price: product.price, // Use server-side price
+                price: product.price, // Always use server-side DB price
                 name: product.name,   // Keep for email
             });
         }
 
-        // Reduce stock atomically
+        // Atomically deduct stock with conditional check ($gte: quantity) to prevent concurrent overselling
+        const successfullyDeducted: Array<{ productId: any; quantity: number }> = [];
         for (const item of validatedItems) {
-            await Product.findByIdAndUpdate(item.productId, {
-                $inc: { stock: -item.quantity },
-            });
+            const updated = await Product.findOneAndUpdate(
+                { _id: item.productId, stock: { $gte: item.quantity } },
+                { $inc: { stock: -item.quantity } },
+                { new: true }
+            );
+
+            if (!updated) {
+                // Stock was claimed by a concurrent order! Roll back prior items
+                for (const rollback of successfullyDeducted) {
+                    await Product.findByIdAndUpdate(rollback.productId, {
+                        $inc: { stock: rollback.quantity },
+                    });
+                }
+                return errorResponse(
+                    `"${item.name}" is no longer available in the requested quantity. Please update your cart before proceeding.`,
+                    409
+                );
+            }
+            successfullyDeducted.push({ productId: item.productId, quantity: item.quantity });
         }
 
         // Determine payment method from body (client sends paymentMethod: "cod" | "online")

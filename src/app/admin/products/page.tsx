@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import CloudinaryImageUploader from "@/components/CloudinaryImageUploader";
 import { ORDERED_CATEGORIES, getCategoryLabel, type CategoryConfig } from "@/config/categories";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProductItem {
   _id: string;
@@ -27,6 +28,7 @@ interface ProductItem {
   category: string;
   images: string[];
   stock: number;
+  lowStockThreshold?: number;
   rating: number;
   numReviews: number;
   createdAt: string;
@@ -56,6 +58,7 @@ const labelStyle: React.CSSProperties = {
 
 function AdminProductsContent() {
   const searchParams = useSearchParams();
+  const { token } = useAuth();
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -71,15 +74,42 @@ function AdminProductsContent() {
   const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Dynamic categories state loaded from database
+  const [dynamicCategories, setDynamicCategories] = useState<{ value: string; label: string }[]>(
+    ORDERED_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setDynamicCategories(
+            data.data.map((c: { name: string; slug: string }) => ({
+              value: c.slug,
+              label: c.name,
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error("Failed to load categories in admin products", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Form State
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
     mrp: "",
-    category: ORDERED_CATEGORIES[0].value,
+    category: ORDERED_CATEGORIES[0]?.value || "resin-art-pigments",
     images: [] as string[],
     stock: "",
+    lowStockThreshold: "5",
   });
 
   const [formError, setFormError] = useState<string | null>(null);
@@ -97,7 +127,13 @@ function AdminProductsContent() {
       if (search) query.set("search", search);
       if (category) query.set("category", category);
 
-      const res = await fetch(`/api/products?${query.toString()}`);
+      const headers: Record<string, string> = {};
+      const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+
+      const res = await fetch(`/api/products?${query.toString()}`, { headers });
       const data = await res.json();
       if (data.success) {
         setProducts(data.data.products);
@@ -109,7 +145,7 @@ function AdminProductsContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, category]);
+  }, [page, search, category, token]);
 
   useEffect(() => {
     fetchProducts();
@@ -132,6 +168,7 @@ function AdminProductsContent() {
       category: ORDERED_CATEGORIES[0].value,
       images: [],
       stock: "10",
+      lowStockThreshold: "5",
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -147,6 +184,7 @@ function AdminProductsContent() {
       category: product.category,
       images: product.images || [],
       stock: product.stock.toString(),
+      lowStockThreshold: (product.lowStockThreshold ?? 5).toString(),
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -181,13 +219,26 @@ function AdminProductsContent() {
       return;
     }
 
+    const stockNum = Number(formData.stock);
+    if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+      setFormError("Stock quantity must be a non-negative whole number (integer).");
+      return;
+    }
+
+    const thresholdNum = formData.lowStockThreshold ? Number(formData.lowStockThreshold) : 5;
+    if (isNaN(thresholdNum) || thresholdNum < 1 || !Number.isInteger(thresholdNum)) {
+      setFormError("Low stock threshold must be a whole number of at least 1.");
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       name: formData.name.trim(),
       description: formData.description.trim(),
       price: priceNum,
       category: formData.category,
       images: formData.images,
-      stock: Number(formData.stock),
+      stock: stockNum,
+      lowStockThreshold: thresholdNum,
     };
     if (mrpNum !== null) {
       payload.mrp = mrpNum;
@@ -200,9 +251,15 @@ function AdminProductsContent() {
         : "/api/products";
       const method = editingProduct ? "PUT" : "POST";
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -222,8 +279,15 @@ function AdminProductsContent() {
 
   const handleDelete = async (id: string) => {
     try {
+      const headers: Record<string, string> = {};
+      const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch(`/api/products/${id}`, {
         method: "DELETE",
+        headers,
       });
       const data = await res.json();
       if (data.success) {
@@ -373,7 +437,7 @@ function AdminProductsContent() {
             }}
           >
             <option value="">All Categories</option>
-            {ORDERED_CATEGORIES.map((c: CategoryConfig) => (
+            {dynamicCategories.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
           </select>
@@ -462,11 +526,14 @@ function AdminProductsContent() {
                     </td>
 
                     <td style={{ padding: "0.9rem 1.25rem", color: "#2c2c2c", fontWeight: 500 }}>
-                      {prod.stock} units
+                      <div>{prod.stock} units</div>
+                      <div style={{ fontSize: "0.7rem", color: "#a09990", marginTop: "2px" }}>
+                        Low alert ≤ {prod.lowStockThreshold ?? 5}
+                      </div>
                     </td>
 
                     <td style={{ padding: "0.9rem 1.25rem" }}>
-                      {prod.stock > 5 ? (
+                      {prod.stock > (prod.lowStockThreshold ?? 5) ? (
                         <span style={{
                           padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 600,
                           background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0",
@@ -478,7 +545,7 @@ function AdminProductsContent() {
                           padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 600,
                           background: "#fffbeb", color: "#b45309", border: "1px solid #fde68a",
                         }}>
-                          Low Stock
+                          Few Left (≤{prod.lowStockThreshold ?? 5})
                         </span>
                       ) : (
                         <span style={{
@@ -610,8 +677,8 @@ function AdminProductsContent() {
                 />
               </div>
 
-              {/* Price row: MRP + Selling Price + Stock */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+              {/* Price row: MRP + Selling Price */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
                   <label style={labelStyle}>MRP (₹) <span style={{ color: "#a09990", fontWeight: 400 }}>(optional)</span></label>
                   <input
@@ -638,19 +705,6 @@ function AdminProductsContent() {
                     style={inputStyle}
                   />
                 </div>
-
-                <div>
-                  <label style={labelStyle}>Stock Qty *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    placeholder="15"
-                    style={inputStyle}
-                  />
-                </div>
               </div>
 
               {/* Price hint */}
@@ -667,6 +721,64 @@ function AdminProductsContent() {
                 </div>
               )}
 
+              {/* Inventory Management: Stock + Low-Stock Threshold */}
+              <div style={{
+                padding: "1rem",
+                background: "#fcfbf9",
+                border: "1px solid #ede5d8",
+                borderRadius: "12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#8b7355", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Inventory & Stock Controls
+                  </span>
+                  <span style={{ fontSize: "0.68rem", color: "#a09990" }}>
+                    Exact counts hidden from customers
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div>
+                    <label style={labelStyle}>Available Stock Quantity *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      required
+                      value={formData.stock}
+                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                      placeholder="15"
+                      style={inputStyle}
+                    />
+                    <p style={{ fontSize: "0.7rem", color: "#a09990", marginTop: "3px" }}>
+                      Total sellable units (integer ≥ 0).
+                    </p>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Low-Stock Alert Threshold *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      value={formData.lowStockThreshold}
+                      onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
+                      placeholder="5"
+                      style={inputStyle}
+                    />
+                    <p style={{ fontSize: "0.7rem", color: "#a09990", marginTop: "3px" }}>
+                      Triggers &ldquo;Only a Few Left&rdquo; badge (default 5).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+
+
               {/* Category */}
               <div>
                 <label style={labelStyle}>Category *</label>
@@ -675,7 +787,7 @@ function AdminProductsContent() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   style={{ ...inputStyle, cursor: "pointer" }}
                 >
-                  {ORDERED_CATEGORIES.map((c: CategoryConfig) => (
+                  {dynamicCategories.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>

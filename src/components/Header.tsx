@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useWishlist } from "@/context/WishlistContext";
+import { Heart } from "lucide-react";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { totalCount: cartCount } = useCart();
+  const { wishlistCount } = useWishlist();
   const { user, logout } = useAuth();
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -142,6 +145,35 @@ export default function Header() {
               </svg>
             </button>
 
+            {/* Wishlist */}
+            <Link
+              href="/wishlist"
+              style={{ position: "relative", textDecoration: "none", display: "flex", color: "var(--charcoal)" }}
+              aria-label="Wishlist"
+              title="View Wishlist"
+            >
+              <Heart
+                size={19}
+                fill={wishlistCount > 0 ? "rgba(190, 18, 60, 0.15)" : "none"}
+                color={wishlistCount > 0 ? "#be123c" : "var(--charcoal)"}
+                strokeWidth={1.5}
+              />
+              {wishlistCount > 0 && (
+                <span
+                  className="badge"
+                  style={{
+                    position: "absolute",
+                    top: "-8px",
+                    right: "-8px",
+                    background: "#be123c",
+                    color: "#ffffff",
+                  }}
+                >
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+
             {/* Cart */}
             <Link href="/cart" style={{ position: "relative", textDecoration: "none", display: "flex" }} aria-label="Cart">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal)" strokeWidth="1.5">
@@ -185,6 +217,14 @@ export default function Header() {
                       <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem", fontWeight: 500, color: "var(--charcoal)" }}>{user.name}</div>
                       <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.72rem", color: "var(--warm-gray)", marginTop: "2px" }}>{user.email}</div>
                     </div>
+                    <Link
+                      href="/wishlist"
+                      onClick={() => setUserMenuOpen(false)}
+                      style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.75rem 1rem", fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--charcoal)", textDecoration: "none", borderBottom: "1px solid var(--beige)" }}
+                    >
+                      <Heart size={15} color="#be123c" strokeWidth={1.5} />
+                      My Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
+                    </Link>
                     <Link
                       href="/orders"
                       onClick={() => setUserMenuOpen(false)}
@@ -282,6 +322,25 @@ export default function Header() {
               {l.label}
             </Link>
           ))}
+
+          <Link
+            href="/wishlist"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              fontFamily: "'Jost', sans-serif", fontSize: "0.8rem",
+              letterSpacing: "0.15em", textTransform: "uppercase",
+              color: "var(--charcoal)", textDecoration: "none",
+              padding: "0.875rem 0", borderBottom: "1px solid var(--beige)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}
+          >
+            <span>Wishlist</span>
+            {wishlistCount > 0 && (
+              <span style={{ fontSize: "0.75rem", background: "rgba(190, 18, 60, 0.1)", color: "#be123c", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
 
           {user && (
             <Link

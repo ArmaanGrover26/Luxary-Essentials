@@ -15,21 +15,12 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Password is required"),
 });
 
-// ── Category enum ─────────────────────────────────────────────────────
-export const categoryEnum = z.enum([
-    "resin",
-    "candles",
-    "raw-materials",
-    "gifts",
-    "resin-art-pigments",
-    "silicon-moulds",
-    "charms-and-pearls",
-    "accessories",
-    "essentials",
-    "candle-moulds",
-    "candle-essentials",
-    "raw-material",
-]);
+// ── Category validator ────────────────────────────────────────────────
+export const categoryEnum = z
+    .string()
+    .min(1, "Category is required")
+    .max(100, "Category cannot exceed 100 characters")
+    .transform((val) => val.trim().toLowerCase());
 
 // ── Product ──────────────────────────────────────────────────────────
 export const baseProductSchema = z.object({
@@ -40,6 +31,7 @@ export const baseProductSchema = z.object({
     category: categoryEnum,
     images: z.array(z.string().url()).min(1, "At least one image required"),
     stock: z.number().int().min(0, "Stock cannot be negative"),
+    lowStockThreshold: z.number().int().min(1, "Low stock threshold must be at least 1").default(5).optional(),
 });
 
 export const productSchema = baseProductSchema.refine(

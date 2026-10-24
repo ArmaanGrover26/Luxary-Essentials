@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import InventoryToast from "@/components/ui/InventoryToast";
+import WishlistToast from "@/components/ui/WishlistToast";
 import { type ReactNode } from "react";
 import { ADMIN_SECRET_SLUG } from "@/config/adminConfig";
 
@@ -17,12 +19,14 @@ export default function ConditionalLayout({ children }: { children: ReactNode })
     return <>{children}</>;
   }
 
-  // Storefront routes: wrap with Header + Footer
+  // Storefront routes: wrap with Header + Footer + Toast
   return (
     <>
       <Header />
       <main>{children}</main>
       <Footer />
+      <InventoryToast />
+      <WishlistToast />
     </>
   );
 }

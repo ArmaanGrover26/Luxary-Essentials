@@ -1,18 +1,6 @@
 import { Schema, model, models, Document } from "mongoose";
 
-export type ProductCategory =
-    | "resin"
-    | "candles"
-    | "raw-materials"
-    | "gifts"
-    | "resin-art-pigments"
-    | "silicon-moulds"
-    | "charms-and-pearls"
-    | "accessories"
-    | "essentials"
-    | "candle-moulds"
-    | "candle-essentials"
-    | "raw-material";
+export type ProductCategory = string;
 
 export interface IProduct extends Document {
     name: string;
@@ -22,6 +10,7 @@ export interface IProduct extends Document {
     category: ProductCategory;
     images: string[];
     stock: number;
+    lowStockThreshold?: number;
     rating: number;
     numReviews: number;
     createdAt: Date;
@@ -56,20 +45,8 @@ const ProductSchema = new Schema<IProduct>(
         category: {
             type: String,
             required: [true, "Category is required"],
-            enum: [
-                "resin",
-                "candles",
-                "raw-materials",
-                "gifts",
-                "resin-art-pigments",
-                "silicon-moulds",
-                "charms-and-pearls",
-                "accessories",
-                "essentials",
-                "candle-moulds",
-                "candle-essentials",
-                "raw-material",
-            ],
+            trim: true,
+            lowercase: true,
         },
         images: {
             type: [String],
@@ -84,6 +61,11 @@ const ProductSchema = new Schema<IProduct>(
             required: true,
             default: 0,
             min: [0, "Stock cannot be negative"],
+        },
+        lowStockThreshold: {
+            type: Number,
+            default: 5,
+            min: [1, "Low stock threshold must be at least 1"],
         },
         rating: {
             type: Number,

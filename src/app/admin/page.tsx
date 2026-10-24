@@ -16,6 +16,7 @@ import {
   ArrowRight,
   RefreshCw,
   Sparkles,
+  Layers,
 } from "lucide-react";
 
 interface RecentOrder {
@@ -152,6 +153,25 @@ export default function AdminDashboardPage() {
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             <span>Refresh</span>
           </button>
+          <Link
+            href="/admin/new-arrivals"
+            style={{
+              padding: "0.6rem 1.15rem",
+              background: "#f5f0e8",
+              color: "#2c2c2c",
+              borderRadius: "10px",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              border: "1px solid #ede5d8",
+            }}
+          >
+            <Layers size={15} color="#b89d72" />
+            <span>New Arrivals</span>
+          </Link>
           <Link
             href="/admin/festivals"
             style={{

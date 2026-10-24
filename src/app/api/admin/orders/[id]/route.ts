@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAdmin } from "@/lib/authMiddleware";
 import Order from "@/models/Order";
+import Product from "@/models/Product";
 import {
     successResponse,
     errorResponse,
@@ -29,15 +30,36 @@ export async function PUT(req: NextRequest, { params }: Params) {
             );
         }
 
-        const order = await Order.findByIdAndUpdate(
-            id,
-            { $set: { orderStatus: parsed.data.orderStatus } },
-            { new: true, runValidators: true }
-        ).populate("userId", "name email");
+        const existingOrder = await Order.findById(id);
+        if (!existingOrder) return notFoundResponse("Order not found");
 
-        if (!order) return notFoundResponse("Order not found");
+        const oldStatus = existingOrder.orderStatus;
+        const newStatus = parsed.data.orderStatus;
 
-        return successResponse(order);
+        // Restore or re-deduct inventory on status changes following order lifecycle
+        if (oldStatus !== newStatus) {
+            if (newStatus === "cancelled" && oldStatus !== "cancelled") {
+                // Restock items atomically
+                for (const item of existingOrder.items) {
+                    await Product.findByIdAndUpdate(item.productId, {
+                        $inc: { stock: item.quantity },
+                    });
+                }
+            } else if (oldStatus === "cancelled" && newStatus !== "cancelled") {
+                // Re-deduct items atomically
+                for (const item of existingOrder.items) {
+                    await Product.findByIdAndUpdate(item.productId, {
+                        $inc: { stock: -item.quantity },
+                    });
+                }
+            }
+        }
+
+        existingOrder.orderStatus = newStatus;
+        await existingOrder.save();
+        await existingOrder.populate("userId", "name email");
+
+        return successResponse(existingOrder);
     } catch (err: unknown) {
         if (err instanceof Error) {
             if (err.message.includes("token") || err.message.includes("Authentication")) {

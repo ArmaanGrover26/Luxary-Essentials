@@ -66,7 +66,7 @@ function StepDot({ num, label, active, done }: { num: number; label: string; act
 }
 
 export default function CheckoutPage() {
-  const { items, clearCart } = useCart();
+  const { items, clearCart, revalidateCart } = useCart();
   const { user, token } = useAuth();
   const router = useRouter();
 
@@ -78,6 +78,11 @@ export default function CheckoutPage() {
   const [placeError, setPlaceError] = useState("");
   const [confirmedOrder, setConfirmedOrder] = useState<{ id: string; total: number } | null>(null);
   const [showOnlineMsg, setShowOnlineMsg] = useState(false);
+
+  // Pre-validate inventory on checkout load
+  useEffect(() => {
+    revalidateCart();
+  }, [revalidateCart]);
 
   // Pre-fill name from user if available
   useEffect(() => {
@@ -481,10 +486,15 @@ export default function CheckoutPage() {
                       )}
                     </div>
 
-                    {/* Error */}
+                    {/* Error with return to cart link */}
                     {placeError && (
-                      <div style={{ background: "#fff5f5", border: "1px solid #fecdd3", borderRadius: "8px", padding: "0.875rem 1rem", fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "#be123c" }}>
-                        {placeError}
+                      <div style={{ background: "#fff5f5", border: "1px solid #fecdd3", borderRadius: "8px", padding: "1rem", fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "#be123c", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div>{placeError}</div>
+                        <div>
+                          <Link href="/cart" style={{ color: "var(--gold)", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}>
+                            ← Return to Cart to adjust quantities
+                          </Link>
+                        </div>
                       </div>
                     )}
 

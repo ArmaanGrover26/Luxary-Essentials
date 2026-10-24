@@ -11,6 +11,7 @@ import {
     serverErrorResponse,
 } from "@/utils/apiResponse";
 import { productSchema } from "@/utils/validators";
+import { isRequestAdmin, sanitizeProductForPublic } from "@/lib/inventoryUtils";
 
 // Allowed sort fields — prevents SEC-006 unvalidated sort injection
 const ALLOWED_SORT_FIELDS = ["createdAt", "price", "name", "rating", "numReviews", "_id"];
@@ -62,7 +63,6 @@ export async function GET(req: NextRequest) {
             if (minPrice) query.price.$gte = Number(minPrice);
             if (maxPrice) query.price.$lte = Number(maxPrice);
         }
-
         const skip = (page - 1) * limit;
         const [products, total] = await Promise.all([
             // Secondary sort by _id ensures stable ordering for equal timestamps
@@ -70,7 +70,10 @@ export async function GET(req: NextRequest) {
             Product.countDocuments(query),
         ]);
 
-        return successResponse({ products, total, page, pages: Math.ceil(total / limit) });
+        const isAdmin = await isRequestAdmin(req);
+        const sanitizedProducts = products.map((prod) => sanitizeProductForPublic(prod, isAdmin));
+
+        return successResponse({ products: sanitizedProducts, total, page, pages: Math.ceil(total / limit) });
     } catch (err) {
         console.error("[GET /api/products]", err);
         return serverErrorResponse();

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { WishlistProvider } from "@/context/WishlistContext";
 import ConditionalLayout from "@/components/ConditionalLayout";
 
 export const metadata: Metadata = {
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <AuthProvider>
           <CartProvider>
-            <ConditionalLayout>{children}</ConditionalLayout>
+            <WishlistProvider>
+              <ConditionalLayout>{children}</ConditionalLayout>
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </body>

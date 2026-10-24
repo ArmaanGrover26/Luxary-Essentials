@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { ShoppingBag, Star, Package, ArrowRight } from "lucide-react";
 import { getCategoryLabel } from "@/config/categories";
+import ProductCardImage from "@/components/ui/ProductCardImage";
+import FavoriteButton from "@/components/ui/FavoriteButton";
 
 interface DBProduct {
   _id: string;
@@ -16,6 +19,9 @@ interface DBProduct {
   category: string;
   images: string[];
   stock: number;
+  stockStatus?: "in_stock" | "low_stock" | "out_of_stock";
+  inStock?: boolean;
+  maxPurchasable?: number;
   rating: number;
   numReviews: number;
 }
@@ -36,10 +42,11 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export default function FeaturedProducts() {
+  const router = useRouter();
   const [products, setProducts] = useState<DBProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [addedIds, setAddedIds] = useState<string[]>([]);
-  const { addToCart } = useCart();
+  const { addToCart, getItemCartQty, setCartNotification } = useCart();
 
   useEffect(() => {
     async function fetchFeatured() {
@@ -62,18 +69,37 @@ export default function FeaturedProducts() {
   }, []);
 
   const handleAdd = (product: DBProduct) => {
-    addToCart({
-      id: product._id,
-      name: product.name,
-      category: product.category,
-      price: product.price,
-      image: product.images[0] || "",
-    });
-    setAddedIds((prev) => [...prev, product._id]);
-    setTimeout(
-      () => setAddedIds((prev) => prev.filter((x) => x !== product._id)),
-      1500
+    const currentInCart = getItemCartQty(product._id);
+    const maxAllowed = typeof product.maxPurchasable === "number"
+      ? product.maxPurchasable
+      : (product.inStock === false ? 0 : 10);
+
+    if (maxAllowed <= 0 || currentInCart >= maxAllowed) {
+      setCartNotification("You've reached the available quantity for this item.");
+      return;
+    }
+
+    const res = addToCart(
+      {
+        id: product._id,
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        image: product.images[0] || "",
+        maxPurchasable: product.maxPurchasable,
+        inStock: product.inStock,
+        stockStatus: product.stockStatus,
+      },
+      1
     );
+
+    if (res.success) {
+      setAddedIds((prev) => [...prev, product._id]);
+      setTimeout(
+        () => setAddedIds((prev) => prev.filter((x) => x !== product._id)),
+        1500
+      );
+    }
   };
 
   const formatCurrency = (val: number) => {
@@ -148,6 +174,7 @@ export default function FeaturedProducts() {
                 <div
                   key={product._id}
                   className="product-card"
+                  onClick={() => router.push(`/product/${product._id}`)}
                   style={{
                     background: "var(--white)",
                     borderRadius: "12px",
@@ -157,10 +184,15 @@ export default function FeaturedProducts() {
                     flexDirection: "column",
                     justifyContent: "space-between",
                     boxShadow: "var(--shadow-card)",
+                    cursor: "pointer",
                   }}
                 >
                   {/* Visual */}
-                  <Link href={`/product/${product._id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link
+                    href={`/product/${product._id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ textDecoration: "none", color: "inherit", display: "block" }}
+                  >
                     <div
                       style={{
                         position: "relative",
@@ -169,28 +201,11 @@ export default function FeaturedProducts() {
                         overflow: "hidden",
                       }}
                     >
-                      {product.images && product.images[0] ? (
-                        <Image
-                          src={product.images[0]}
-                          alt={product.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 300px"
-                          style={{ objectFit: "cover" }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "var(--light-gray)",
-                          }}
-                        >
-                          <Package size={36} />
-                        </div>
-                      )}
+                      <ProductCardImage
+                        images={product.images}
+                        alt={product.name}
+                        sizes="(max-width: 768px) 100vw, 300px"
+                      />
 
                       {/* Discount badge */}
                       {disc > 0 && (
@@ -205,6 +220,7 @@ export default function FeaturedProducts() {
                             fontSize: "0.65rem",
                             fontWeight: 700,
                             borderRadius: "4px",
+                            pointerEvents: "none",
                           }}
                         >
                           -{disc}%
@@ -212,7 +228,7 @@ export default function FeaturedProducts() {
                       )}
 
                       {/* Low stock badge */}
-                      {product.stock <= 5 && product.stock > 0 && (
+                      {product.stockStatus === "low_stock" && (
                         <div
                           style={{
                             position: "absolute",
@@ -226,11 +242,15 @@ export default function FeaturedProducts() {
                             textTransform: "uppercase",
                             borderRadius: "4px",
                             fontWeight: 600,
+                            pointerEvents: "none",
                           }}
                         >
                           Only a Few Left
                         </div>
                       )}
+
+                      {/* Favorite Button */}
+                      <FavoriteButton productId={product._id} size="sm" />
                     </div>
                   </Link>
 
@@ -259,7 +279,11 @@ export default function FeaturedProducts() {
                       >
                         {getCategoryLabel(product.category)}
                       </span>
-                      <Link href={`/product/${product._id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                      <Link
+                        href={`/product/${product._id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ textDecoration: "none", color: "inherit" }}
+                      >
                         <h3
                           className="font-serif product-card-title"
                           style={{
@@ -354,8 +378,17 @@ export default function FeaturedProducts() {
 
                       <button
                         className="product-card-btn"
-                        onClick={() => handleAdd(product)}
-                        disabled={product.stock <= 0}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAdd(product);
+                        }}
+                        disabled={
+                          product.stockStatus === "out_of_stock" ||
+                          (product.maxPurchasable ?? product.stock) <= 0 ||
+                          getItemCartQty(product._id) >= (product.maxPurchasable ?? 10)
+                        }
                         style={{
                           width: "100%",
                           fontSize: "0.75rem",
@@ -364,20 +397,37 @@ export default function FeaturedProducts() {
                           border: "none",
                           background: addedIds.includes(product._id)
                             ? "var(--gold)"
+                            : getItemCartQty(product._id) >= (product.maxPurchasable ?? 10)
+                            ? "rgba(44, 44, 44, 0.7)"
                             : "var(--charcoal)",
                           color: "white",
-                          cursor: product.stock <= 0 ? "not-allowed" : "pointer",
+                          cursor:
+                            product.stockStatus === "out_of_stock" ||
+                            (product.maxPurchasable ?? product.stock) <= 0
+                              ? "not-allowed"
+                              : "pointer",
                           fontWeight: 500,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           gap: "6px",
-                          opacity: product.stock <= 0 ? 0.5 : 1,
+                          opacity:
+                            product.stockStatus === "out_of_stock" ||
+                            (product.maxPurchasable ?? product.stock) <= 0
+                              ? 0.5
+                              : 1,
                         }}
                       >
                         <ShoppingBag size={14} />
                         <span>
-                          {addedIds.includes(product._id) ? "Added ✓" : "Add to Cart"}
+                          {product.stockStatus === "out_of_stock" ||
+                          (product.maxPurchasable ?? product.stock) <= 0
+                            ? "Out of Stock"
+                            : addedIds.includes(product._id)
+                            ? "Added ✓"
+                            : getItemCartQty(product._id) >= (product.maxPurchasable ?? 10)
+                            ? "Limit in Cart"
+                            : "Add to Cart"}
                         </span>
                       </button>
                     </div>
