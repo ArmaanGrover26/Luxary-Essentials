@@ -97,7 +97,7 @@ function VerifyEmailForm() {
     setError("");
     const result = await resendOtp(email);
     if (result.success) {
-      setInfo("A new verification code has been sent to your email.");
+      setInfo("A new verification code has been sent to your email. Please check your spam folder as well.");
       setResendCooldown(60); // 60-second cooldown
       setDigits(["", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
@@ -146,6 +146,26 @@ function VerifyEmailForm() {
               We sent a 6-digit code to<br />
               <strong style={{ color: "var(--charcoal)" }}>{maskedEmail}</strong>
             </p>
+
+            {/* Spam notice tip */}
+            <div style={{
+              marginTop: "0.9rem",
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: "8px",
+              padding: "0.6rem 0.85rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              textAlign: "left",
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.75rem", color: "#92400e", lineHeight: 1.4 }}>
+                Can&apos;t find it? Please check your <strong>spam or junk folder</strong> as well.
+              </span>
+            </div>
           </div>
 
           {/* Error */}
