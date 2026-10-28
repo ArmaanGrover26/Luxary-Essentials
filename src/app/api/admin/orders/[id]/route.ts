@@ -35,9 +35,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
         const oldStatus = existingOrder.orderStatus;
         const newStatus = parsed.data.orderStatus;
+        const newPaymentStatus = parsed.data.paymentStatus;
 
         // Restore or re-deduct inventory on status changes following order lifecycle
-        if (oldStatus !== newStatus) {
+        if (newStatus && oldStatus !== newStatus) {
             if (newStatus === "cancelled" && oldStatus !== "cancelled") {
                 // Restock items atomically
                 for (const item of existingOrder.items) {
@@ -53,9 +54,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
                     });
                 }
             }
+            existingOrder.orderStatus = newStatus;
         }
 
-        existingOrder.orderStatus = newStatus;
+        if (newPaymentStatus) {
+            existingOrder.paymentStatus = newPaymentStatus;
+        }
+
         await existingOrder.save();
         await existingOrder.populate("userId", "name email");
 

@@ -135,6 +135,36 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
+
+  const handlePaymentStatusChange = async (orderId: string, newPaymentStatus: "pending" | "paid" | "failed") => {
+    try {
+      setUpdatingPaymentId(orderId);
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentStatus: newPaymentStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o._id === orderId ? { ...o, paymentStatus: data.data.paymentStatus } : o
+          )
+        );
+        if (selectedOrder && selectedOrder._id === orderId) {
+          setSelectedOrder({ ...selectedOrder, paymentStatus: data.data.paymentStatus });
+        }
+      } else {
+        alert(data.error || "Failed to update payment status");
+      }
+    } catch {
+      alert("Error updating payment status");
+    } finally {
+      setUpdatingPaymentId(null);
+    }
+  };
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -322,14 +352,66 @@ export default function AdminOrdersPage() {
                     </td>
 
                     <td style={{ padding: "0.9rem 1.25rem" }}>
-                      <span style={{
-                        padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase",
-                        background: order.paymentStatus === "paid" ? "#ecfdf5" : order.paymentStatus === "failed" ? "#fff1f2" : "#fffbeb",
-                        color: order.paymentStatus === "paid" ? "#047857" : order.paymentStatus === "failed" ? "#be123c" : "#b45309",
-                        border: order.paymentStatus === "paid" ? "1px solid #a7f3d0" : order.paymentStatus === "failed" ? "1px solid #fecdd3" : "1px solid #fde68a",
-                      }}>
-                        {order.paymentStatus}
-                      </span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "flex-start" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{
+                            padding: "0.15rem 0.45rem",
+                            borderRadius: "4px",
+                            fontSize: "0.62rem",
+                            fontWeight: 700,
+                            letterSpacing: "0.05em",
+                            background: (!order.razorpayOrderId && !order.paymentId) ? "#fef3c7" : "#e0e7ff",
+                            color: (!order.razorpayOrderId && !order.paymentId) ? "#92400e" : "#4338ca",
+                            border: (!order.razorpayOrderId && !order.paymentId) ? "1px solid #fde68a" : "1px solid #c7d2fe",
+                          }}>
+                            {(!order.razorpayOrderId && !order.paymentId) ? "COD" : "ONLINE"}
+                          </span>
+                          <select
+                            value={order.paymentStatus}
+                            disabled={updatingPaymentId === order._id}
+                            onChange={(e) => handlePaymentStatusChange(order._id, e.target.value as "pending" | "paid" | "failed")}
+                            style={{
+                              padding: "0.3rem 0.55rem",
+                              borderRadius: "8px",
+                              fontSize: "0.72rem",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              background: order.paymentStatus === "paid" ? "#ecfdf5" : order.paymentStatus === "failed" ? "#fff1f2" : "#fffbeb",
+                              color: order.paymentStatus === "paid" ? "#047857" : order.paymentStatus === "failed" ? "#be123c" : "#b45309",
+                              border: order.paymentStatus === "paid" ? "1px solid #a7f3d0" : order.paymentStatus === "failed" ? "1px solid #fecdd3" : "1px solid #fde68a",
+                              cursor: "pointer",
+                              outline: "none",
+                            }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="failed">Failed</option>
+                          </select>
+                        </div>
+                        {(!order.razorpayOrderId && !order.paymentId) && order.paymentStatus === "pending" && (
+                          <button
+                            type="button"
+                            onClick={() => handlePaymentStatusChange(order._id, "paid")}
+                            disabled={updatingPaymentId === order._id}
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 600,
+                              color: "#047857",
+                              background: "rgba(16, 185, 129, 0.08)",
+                              border: "1px dashed #a7f3d0",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                            }}
+                            title="Mark Cash on Delivery as Paid"
+                          >
+                            ✓ Mark Paid (COD)
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     <td style={{ padding: "0.9rem 1.25rem" }}>
@@ -510,23 +592,98 @@ export default function AdminOrdersPage() {
 
               {/* Payment info */}
               <div style={{ padding: "1rem", borderRadius: "12px", border: "1px solid #ede5d8", background: "#ffffff" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "8px", borderBottom: "1px solid #ede5d8", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "8px", borderBottom: "1px solid #ede5d8", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 600, fontSize: "0.85rem", color: "#2c2c2c" }}>
                     <CreditCard size={15} style={{ color: "#b89d72" }} />
-                    <span>Payment Verification</span>
+                    <span>Payment Information</span>
+                    <span style={{
+                      marginLeft: "6px",
+                      padding: "0.15rem 0.45rem",
+                      borderRadius: "4px",
+                      fontSize: "0.62rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.05em",
+                      background: (!selectedOrder.razorpayOrderId && !selectedOrder.paymentId) ? "#fef3c7" : "#e0e7ff",
+                      color: (!selectedOrder.razorpayOrderId && !selectedOrder.paymentId) ? "#92400e" : "#4338ca",
+                      border: (!selectedOrder.razorpayOrderId && !selectedOrder.paymentId) ? "1px solid #fde68a" : "1px solid #c7d2fe",
+                    }}>
+                      {(!selectedOrder.razorpayOrderId && !selectedOrder.paymentId) ? "CASH ON DELIVERY" : "ONLINE PAYMENT"}
+                    </span>
                   </div>
-                  <span style={{
-                    padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase",
-                    background: selectedOrder.paymentStatus === "paid" ? "#ecfdf5" : "#fffbeb",
-                    color: selectedOrder.paymentStatus === "paid" ? "#047857" : "#b45309",
-                  }}>
-                    {selectedOrder.paymentStatus}
-                  </span>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "0.78rem", color: "#6b6560", fontWeight: 500 }}>Payment Status:</span>
+                    <select
+                      value={selectedOrder.paymentStatus}
+                      disabled={updatingPaymentId === selectedOrder._id}
+                      onChange={(e) => handlePaymentStatusChange(selectedOrder._id, e.target.value as "pending" | "paid" | "failed")}
+                      style={{
+                        padding: "0.35rem 0.65rem",
+                        borderRadius: "8px",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        background: selectedOrder.paymentStatus === "paid" ? "#ecfdf5" : selectedOrder.paymentStatus === "failed" ? "#fff1f2" : "#fffbeb",
+                        color: selectedOrder.paymentStatus === "paid" ? "#047857" : selectedOrder.paymentStatus === "failed" ? "#be123c" : "#b45309",
+                        border: selectedOrder.paymentStatus === "paid" ? "1px solid #a7f3d0" : selectedOrder.paymentStatus === "failed" ? "1px solid #fecdd3" : "1px solid #fde68a",
+                        cursor: "pointer",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="failed">Failed</option>
+                    </select>
+
+                    {(!selectedOrder.razorpayOrderId && !selectedOrder.paymentId) && selectedOrder.paymentStatus === "pending" && (
+                      <button
+                        type="button"
+                        onClick={() => handlePaymentStatusChange(selectedOrder._id, "paid")}
+                        disabled={updatingPaymentId === selectedOrder._id}
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          color: "#ffffff",
+                          background: "#047857",
+                          border: "none",
+                          padding: "0.4rem 0.75rem",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        ✓ Mark as Paid
+                      </button>
+                    )}
+                  </div>
                 </div>
+
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", fontSize: "0.78rem", color: "#6b6560" }}>
-                  <div><strong style={{ color: "#2c2c2c" }}>Razorpay Order ID:</strong> {selectedOrder.razorpayOrderId || "N/A"}</div>
-                  <div><strong style={{ color: "#2c2c2c" }}>Payment Ref ID:</strong> {selectedOrder.paymentId || "N/A"}</div>
+                  <div><strong style={{ color: "#2c2c2c" }}>Payment Method:</strong> {(!selectedOrder.razorpayOrderId && !selectedOrder.paymentId) ? "Cash on Delivery (COD)" : "Online (Razorpay)"}</div>
+                  <div><strong style={{ color: "#2c2c2c" }}>Payment Status:</strong> <span style={{ textTransform: "capitalize", fontWeight: 600, color: selectedOrder.paymentStatus === "paid" ? "#047857" : selectedOrder.paymentStatus === "failed" ? "#be123c" : "#b45309" }}>{selectedOrder.paymentStatus}</span></div>
+                  <div><strong style={{ color: "#2c2c2c" }}>Razorpay Order ID:</strong> {selectedOrder.razorpayOrderId || "N/A (COD)"}</div>
+                  <div><strong style={{ color: "#2c2c2c" }}>Payment Ref ID:</strong> {selectedOrder.paymentId || "N/A (COD)"}</div>
                 </div>
+
+                {selectedOrder.paymentStatus === "pending" && (
+                  <div style={{
+                    marginTop: "10px",
+                    padding: "0.6rem 0.85rem",
+                    borderRadius: "8px",
+                    background: "#fffbeb",
+                    border: "1px solid #fde68a",
+                    fontSize: "0.76rem",
+                    color: "#92400e",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}>
+                    <span style={{ fontSize: "1rem" }}>📞</span>
+                    <span><strong>Workflow Action:</strong> Admin will call customer on <strong>{selectedOrder.shippingAddress?.phone || "mobile no."}</strong> and collect payment before shipping this order. Click <strong>Mark as Paid</strong> above once payment is collected.</span>
+                  </div>
+                )}
               </div>
 
               {/* Items Breakdown Table */}

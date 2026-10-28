@@ -1243,8 +1243,8 @@ export default function ProductDetailPage({
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--beige)", paddingBottom: "0.5rem" }}>
                       <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--warm-gray)" }}>Availability</span>
-                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", fontWeight: 600, color: product.stock > 0 ? "#059669" : "#dc2626" }}>
-                        {product.stock > 0 ? `In Stock (${product.stock} units)` : "Out of Stock"}
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", fontWeight: 600, color: product.stockStatus === "out_of_stock" ? "#dc2626" : product.stockStatus === "low_stock" ? "#d97706" : "#059669" }}>
+                        {product.stockStatus === "out_of_stock" ? "Out of Stock" : product.stockStatus === "low_stock" ? "Only a Few Left" : "In Stock"}
                       </span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--beige)", paddingBottom: "0.5rem" }}>

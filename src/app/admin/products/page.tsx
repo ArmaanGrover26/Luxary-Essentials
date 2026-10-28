@@ -128,12 +128,9 @@ function AdminProductsContent() {
       if (category) query.set("category", category);
 
       const headers: Record<string, string> = {};
-      const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
-      }
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/products?${query.toString()}`, { headers });
+      const res = await fetch(`/api/products?${query.toString()}`, { credentials: "include", headers });
       const data = await res.json();
       if (data.success) {
         setProducts(data.data.products);
@@ -252,13 +249,11 @@ function AdminProductsContent() {
       const method = editingProduct ? "PUT" : "POST";
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
-      }
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(url, {
         method,
+        credentials: "include",
         headers,
         body: JSON.stringify(payload),
       });
@@ -280,13 +275,11 @@ function AdminProductsContent() {
   const handleDelete = async (id: string) => {
     try {
       const headers: Record<string, string> = {};
-      const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
-      }
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(`/api/products/${id}`, {
         method: "DELETE",
+        credentials: "include",
         headers,
       });
       const data = await res.json();

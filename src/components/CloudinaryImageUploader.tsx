@@ -41,9 +41,12 @@ export default function CloudinaryImageUploader({
   );
 
   const uploadToCloudinary = async (file: File, index: number) => {
-    // 1. Get signed credentials from our API route
-    const signRes = await fetch("/api/cloudinary/sign-upload");
-    if (!signRes.ok) throw new Error("Failed to get upload signature");
+    // 1. Get signed credentials from our API route (admin authenticated via HttpOnly cookie)
+    const signRes = await fetch("/api/cloudinary/sign-upload", { credentials: "include" });
+    if (!signRes.ok) {
+      const errData = await signRes.json().catch(() => ({}));
+      throw new Error(errData.error || "Failed to get upload signature (Admin required)");
+    }
     const { signature, timestamp, cloudName, apiKey, folder } =
       await signRes.json();
 

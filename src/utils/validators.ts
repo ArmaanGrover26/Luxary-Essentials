@@ -75,18 +75,23 @@ export const orderSchema = z.object({
 });
 
 // ── Admin ────────────────────────────────────────────────────────────
-export const updateOrderStatusSchema = z.object({
-    orderStatus: z.enum([
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-    ]),
-});
+export const updateOrderStatusSchema = z
+    .object({
+        orderStatus: z
+            .enum(["processing", "shipped", "delivered", "cancelled"])
+            .optional(),
+        paymentStatus: z
+            .enum(["pending", "paid", "failed"])
+            .optional(),
+    })
+    .refine((data) => data.orderStatus !== undefined || data.paymentStatus !== undefined, {
+        message: "At least one of orderStatus or paymentStatus must be provided",
+    });
 
 // ── Payment ──────────────────────────────────────────────────────────
 export const createPaymentOrderSchema = z.object({
-    amount: z.number().positive("Amount must be positive"),
+    orderId: z.string().min(1, "Order ID is required"),
+    amount: z.number().positive("Amount must be positive").optional(),
 });
 
 export const verifyPaymentSchema = z.object({

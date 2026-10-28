@@ -4,9 +4,13 @@ import { ADMIN_SECRET_SLUG } from "@/config/adminConfig";
 
 const PROTECTED_ROUTES = ["/dashboard", "/profile"];
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "luxury_essentials_secret_key_2026_super_secure_token"
-);
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret) {
+  throw new Error("FATAL: JWT_SECRET environment variable is not set");
+}
+
+const JWT_SECRET = new TextEncoder().encode(rawSecret);
+
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

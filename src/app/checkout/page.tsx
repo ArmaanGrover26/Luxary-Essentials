@@ -243,9 +243,36 @@ export default function CheckoutPage() {
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.9rem", color: "var(--warm-gray)", lineHeight: 1.8, marginBottom: "0.5rem" }}>
                 Your order <strong style={{ color: "var(--charcoal)", fontFamily: "monospace" }}>#{confirmedOrder.id.slice(-6).toUpperCase()}</strong> has been placed successfully.
               </p>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "1.5rem" }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "1.25rem" }}>
                 Payment: <strong>Cash on Delivery</strong> · Total: <strong>₹{confirmedOrder.total.toLocaleString()}</strong>
               </p>
+
+              {/* Call notice banner */}
+              <div style={{
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: "12px",
+                padding: "1rem 1.25rem",
+                marginBottom: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.85rem",
+                textAlign: "left",
+              }}>
+                <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.78rem", fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Payment Pending
+                  </div>
+                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "#b45309", marginTop: "2px", lineHeight: 1.5 }}>
+                    Admin will call you on your mobile no. and collect payment before shipping your order.
+                  </div>
+                </div>
+              </div>
 
               {/* Email confirmation notice banner */}
               <div style={{

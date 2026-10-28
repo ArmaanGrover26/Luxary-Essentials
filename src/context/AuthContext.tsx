@@ -32,17 +32,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session on mount
+  // Restore session on mount via HttpOnly cookie
   const restoreSession = useCallback(async () => {
     try {
-      const savedToken = localStorage.getItem("le_token");
-      if (!savedToken) {
-        setLoading(false);
-        return;
+      // Clean up legacy insecure storage if present
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("le_token");
       }
 
       const res = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${savedToken}` },
+        credentials: "include",
       });
       const data = await res.json();
 
@@ -53,12 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: data.data.email,
           role: data.data.role,
         });
-        setToken(savedToken);
-      } else {
-        localStorage.removeItem("le_token");
       }
     } catch {
-      localStorage.removeItem("le_token");
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -76,14 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
 
       if (data.success) {
-        const { token: newToken, user: userData } = data.data;
-        localStorage.setItem("le_token", newToken);
-        setToken(newToken);
+        const { user: userData } = data.data;
         setUser({
           id: userData.id,
           name: userData.name,
@@ -108,14 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name, email, password }),
       });
       const data = await res.json();
 
       if (data.success) {
-        const { token: newToken, user: userData } = data.data;
-        localStorage.setItem("le_token", newToken);
-        setToken(newToken);
+        const { user: userData } = data.data;
         setUser({
           id: userData.id,
           name: userData.name,
@@ -131,14 +125,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("le_token");
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/me", { method: "POST", credentials: "include" });
+    } catch {
+      // Proceed with local logout regardless of network status
+    }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("le_token");
+    }
     setUser(null);
     setToken(null);
   };
 
   return (
     <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+
       {children}
     </AuthContext.Provider>
   );

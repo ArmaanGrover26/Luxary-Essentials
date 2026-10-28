@@ -53,13 +53,11 @@ export default function WishlistPage() {
   const loadWishlistData = useCallback(async () => {
     try {
       setLoading(true);
-      const currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
-
       let url = "/api/wishlist";
       const headers: Record<string, string> = {};
 
-      if (user && currentToken) {
-        headers["Authorization"] = `Bearer ${currentToken}`;
+      if (user) {
+        if (token) headers["Authorization"] = `Bearer ${token}`;
       } else {
         // Guest mode: check wishlistIds or localStorage fallback
         let targetIds = wishlistIds;
@@ -79,7 +77,7 @@ export default function WishlistPage() {
         url = `/api/wishlist?ids=${encodeURIComponent(targetIds.join(","))}`;
       }
 
-      const res = await fetch(url, { headers });
+      const res = await fetch(url, { credentials: "include", headers });
       const data = await res.json();
 
       if (data.success && Array.isArray(data.data?.items)) {

@@ -1,7 +1,21 @@
 import jwt from "jsonwebtoken";
+import fs from "fs";
+import path from "path";
 
 const BASE_URL = "http://localhost:3000";
-const JWT_SECRET = "luxury_essentials_secret_key_2026_super_secure_token";
+
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  try {
+    const envContent = fs.readFileSync(path.resolve(process.cwd(), ".env.local"), "utf8");
+    const match = envContent.match(/JWT_SECRET\s*=\s*(.*)/);
+    if (match) JWT_SECRET = match[1].trim();
+  } catch {}
+}
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is required to run tests");
+}
 
 async function runTests() {
   console.log("=== Testing Dynamic Category System ===");

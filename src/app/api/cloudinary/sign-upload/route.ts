@@ -1,16 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
+import { requireAdmin } from "@/lib/authMiddleware";
+import {
+  unauthorizedResponse,
+  errorResponse,
+} from "@/utils/apiResponse";
 
-// This route generates a signed upload signature server-side.
-// The API_SECRET never leaves the server, keeping uploads secure.
+// Configure Cloudinary with server-side credentials
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    // Only authorized administrators can generate Cloudinary upload signatures
+    await requireAdmin(req);
+
     const timestamp = Math.round(Date.now() / 1000);
 
     const signature = cloudinary.utils.api_sign_request(
@@ -30,7 +37,15 @@ export async function GET() {
       apiKey: process.env.CLOUDINARY_API_KEY,
       folder: "luxury-essentials/products",
     });
-  } catch (err) {
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      if (err.message.includes("token") || err.message.includes("Authentication")) {
+        return unauthorizedResponse(err.message);
+      }
+      if (err.message.includes("Access denied")) {
+        return errorResponse(err.message, 403);
+      }
+    }
     console.error("[Cloudinary Sign] Error:", err);
     return NextResponse.json(
       { error: "Failed to generate upload signature" },

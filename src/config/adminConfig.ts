@@ -8,7 +8,7 @@
  * Only those who know `/<ADMIN_SECRET_SLUG>` can access the admin login and dashboard.
  */
 export const ADMIN_SECRET_SLUG =
-  process.env.NEXT_PUBLIC_ADMIN_SECRET_SLUG || "secret-owner-portal";
+  process.env.ADMIN_SECRET_SLUG || "secret-owner-portal";
 
 /**
  * Returns the secret URL path for any admin sub-path.

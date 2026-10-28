@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import fs from "fs";
 import path from "path";
 
-// Simple env loader for .env.local
+// Load environment variables from .env.local if present
 const envPath = path.join(process.cwd(), ".env.local");
 if (fs.existsSync(envPath)) {
   const envConfig = fs.readFileSync(envPath, "utf8");
@@ -16,10 +16,26 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/luxury-essentials";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@luxuryessentials.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin12345";
-const ADMIN_NAME = "System Administrator";
+const MONGODB_URI = process.env.MONGODB_URI;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ADMIN_NAME = process.env.ADMIN_NAME || "System Administrator";
+
+if (!MONGODB_URI) {
+  console.error("❌ Error: MONGODB_URI environment variable is required.");
+  process.exit(1);
+}
+
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error("❌ Error: Both ADMIN_EMAIL and ADMIN_PASSWORD environment variables are required.");
+  console.error("   Example: ADMIN_EMAIL=owner@luxuryessentials.com ADMIN_PASSWORD=StrongPass123! node scripts/seedAdmin.mjs");
+  process.exit(1);
+}
+
+if (ADMIN_PASSWORD.length < 10) {
+  console.error("❌ Error: ADMIN_PASSWORD must be at least 10 characters long.");
+  process.exit(1);
+}
 
 const UserSchema = new mongoose.Schema(
   {
@@ -35,10 +51,10 @@ const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 async function seedAdmin() {
   try {
-    console.log(`Connecting to MongoDB at: ${MONGODB_URI}...`);
+    console.log("Connecting to MongoDB...");
     await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
 
-    let admin = await User.findOne({ email: ADMIN_EMAIL });
+    let admin = await User.findOne({ email: ADMIN_EMAIL.toLowerCase().trim() });
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
 
     if (admin) {
@@ -50,19 +66,18 @@ async function seedAdmin() {
     } else {
       admin = await User.create({
         name: ADMIN_NAME,
-        email: ADMIN_EMAIL,
+        email: ADMIN_EMAIL.toLowerCase().trim(),
         password: hashedPassword,
         role: "admin",
       });
-      console.log(`✅ Default Admin account created successfully!`);
+      console.log(`✅ Admin account created successfully!`);
     }
 
-    console.log(`\n🔑 Admin Credentials:`);
+    console.log(`\n🔑 Admin Account Configured:`);
     console.log(`──────────────────────────────────────────`);
-    console.log(` Portal URL : http://localhost:3000/admin/login`);
-    console.log(` Email      : ${ADMIN_EMAIL}`);
-    console.log(` Password   : ${ADMIN_PASSWORD}`);
-    console.log(` Role       : admin`);
+    console.log(` Email      : ${admin.email}`);
+    console.log(` Role       : ${admin.role}`);
+    console.log(` Password   : [PROTECTED / NOT PRINTED IN LOGS]`);
     console.log(`──────────────────────────────────────────\n`);
   } catch (err) {
     console.error("❌ Error seeding admin user:", err);

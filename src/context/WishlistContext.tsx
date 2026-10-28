@@ -71,10 +71,14 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     };
 
     // Fetch authenticated user wishlist
-    const fetchUserWishlist = useCallback(async (authToken: string) => {
+    const fetchUserWishlist = useCallback(async (authToken?: string | null) => {
         try {
+            const headers: Record<string, string> = {};
+            if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
             const res = await fetch("/api/wishlist", {
-                headers: { Authorization: `Bearer ${authToken}` },
+                credentials: "include",
+                headers,
             });
             const data = await res.json();
             if (data.success && Array.isArray(data.data?.productIds)) {
@@ -89,19 +93,21 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const handleAuthChange = async () => {
             setLoading(true);
-            const currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
 
-            if (user && currentToken) {
+            if (user) {
                 // If transitioning from guest to logged-in
                 const guestIds = getGuestWishlist();
                 if (guestIds.length > 0) {
                     try {
+                        const headers: Record<string, string> = {
+                            "Content-Type": "application/json",
+                        };
+                        if (token) headers["Authorization"] = `Bearer ${token}`;
+
                         const mergeRes = await fetch("/api/wishlist/merge", {
                             method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${currentToken}`,
-                            },
+                            credentials: "include",
+                            headers,
                             body: JSON.stringify({ productIds: guestIds }),
                         });
                         const mergeData = await mergeRes.json();
@@ -109,13 +115,13 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                             setWishlistIds(mergeData.data.productIds);
                             localStorage.removeItem(GUEST_WISHLIST_KEY);
                         } else {
-                            await fetchUserWishlist(currentToken);
+                            await fetchUserWishlist(token);
                         }
                     } catch {
-                        await fetchUserWishlist(currentToken);
+                        await fetchUserWishlist(token);
                     }
                 } else {
-                    await fetchUserWishlist(currentToken);
+                    await fetchUserWishlist(token);
                 }
             } else {
                 // Guest mode
@@ -151,24 +157,25 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
 
             setWishlistIds(nextList);
 
-            const currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
-
-            if (!user || !currentToken) {
+            if (!user) {
                 // Guest persistence
                 saveGuestWishlist(nextList);
                 showNotification(nextState ? "Saved to your Wishlist" : "Removed from your Wishlist");
                 return nextState;
             }
 
-            // Authenticated persistence
+            // Authenticated persistence via HttpOnly cookie
             try {
+                const headers: Record<string, string> = {
+                    "Content-Type": "application/json",
+                };
+                if (token) headers["Authorization"] = `Bearer ${token}`;
+
                 if (nextState) {
                     const res = await fetch("/api/wishlist", {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${currentToken}`,
-                        },
+                        credentials: "include",
+                        headers,
                         body: JSON.stringify({ productId: pId }),
                     });
                     const data = await res.json();
@@ -182,9 +189,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                 } else {
                     const res = await fetch(`/api/wishlist?productId=${encodeURIComponent(pId)}`, {
                         method: "DELETE",
-                        headers: {
-                            Authorization: `Bearer ${currentToken}`,
-                        },
+                        credentials: "include",
+                        headers,
                     });
                     const data = await res.json();
                     if (!data.success) {
@@ -223,9 +229,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     );
 
     const refreshWishlist = useCallback(async () => {
-        const currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("le_token") : null);
-        if (user && currentToken) {
-            await fetchUserWishlist(currentToken);
+        if (user) {
+            await fetchUserWishlist(token);
         } else {
             setWishlistIds(getGuestWishlist());
         }

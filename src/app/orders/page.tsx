@@ -22,6 +22,8 @@ interface Order {
   totalAmount: number;
   orderStatus: "processing" | "shipped" | "delivered" | "cancelled";
   paymentStatus: "pending" | "paid" | "failed";
+  paymentId?: string;
+  razorpayOrderId?: string;
   createdAt: string;
   shippingAddress?: {
     name: string;
@@ -169,9 +171,26 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                        {/* Payment badge */}
+                        <span style={{
+                          padding: "0.22rem 0.65rem",
+                          borderRadius: "20px",
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                          background: order.paymentStatus === "paid" ? "#ecfdf5" : order.paymentStatus === "failed" ? "#fff1f2" : "#fffbeb",
+                          color: order.paymentStatus === "paid" ? "#047857" : order.paymentStatus === "failed" ? "#be123c" : "#b45309",
+                          border: order.paymentStatus === "paid" ? "1px solid #a7f3d0" : order.paymentStatus === "failed" ? "1px solid #fecdd3" : "1px solid #fde68a",
+                        }}>
+                          {order.paymentStatus === "paid"
+                            ? (!order.razorpayOrderId && !order.paymentId ? "✓ Paid (COD)" : "✓ Paid")
+                            : (!order.razorpayOrderId && !order.paymentId ? "COD • Pending" : "Payment Pending")}
+                        </span>
+
                         {/* Status badge */}
-                        <span style={{ padding: "0.25rem 0.75rem", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                        <span style={{ padding: "0.22rem 0.65rem", borderRadius: "20px", fontSize: "0.68rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
                           {order.orderStatus}
                         </span>
 
@@ -236,10 +255,49 @@ export default function OrdersPage() {
                           ))}
                         </div>
 
+                        {/* Payment Status Card */}
+                        <div style={{
+                          marginTop: "1.25rem",
+                          padding: "0.875rem 1.15rem",
+                          borderRadius: "10px",
+                          background: order.paymentStatus === "paid" ? "#f0fdf4" : "#fffbeb",
+                          border: `1px solid ${order.paymentStatus === "paid" ? "#bbf7d0" : "#fef08a"}`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "0.75rem",
+                        }}>
+                          <div>
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, color: order.paymentStatus === "paid" ? "#166534" : "#92400e" }}>
+                              {(!order.razorpayOrderId && !order.paymentId) ? "Cash on Delivery" : "Online Payment"}
+                            </div>
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: order.paymentStatus === "paid" ? "#15803d" : "#78350f", marginTop: "2px" }}>
+                              {order.paymentStatus === "paid"
+                                ? ((!order.razorpayOrderId && !order.paymentId)
+                                    ? "✓ Cash payment received and confirmed by store."
+                                    : "✓ Paid online via Razorpay.")
+                                : "⏳ Payment Pending: Admin will call you on your mobile no. and collect payment before shipping your order."}
+                            </div>
+                          </div>
+                          <span style={{
+                            padding: "0.25rem 0.65rem",
+                            borderRadius: "20px",
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            background: order.paymentStatus === "paid" ? "#dcfce7" : "#fef9c3",
+                            color: order.paymentStatus === "paid" ? "#15803d" : "#854d0e",
+                            border: `1px solid ${order.paymentStatus === "paid" ? "#86efac" : "#fde047"}`,
+                          }}>
+                            {order.paymentStatus === "paid" ? "Paid" : "Pending"}
+                          </span>
+                        </div>
+
                         {/* Total row */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--beige)" }}>
                           <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.78rem", color: "var(--warm-gray)" }}>
-                            Payment: <strong style={{ color: order.paymentStatus === "paid" ? "#047857" : "var(--charcoal)", textTransform: "capitalize" }}>{order.paymentStatus === "pending" ? "Cash on Delivery" : order.paymentStatus}</strong>
+                            Method: <strong style={{ color: "var(--charcoal)" }}>{(!order.razorpayOrderId && !order.paymentId) ? "Cash on Delivery" : "Razorpay Online"}</strong>
                           </span>
                           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 600, color: "var(--charcoal)" }}>
                             Total: {formatCurrency(order.totalAmount)}
