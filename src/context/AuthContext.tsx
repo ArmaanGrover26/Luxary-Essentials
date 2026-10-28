@@ -21,7 +21,9 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; requiresVerification?: boolean; email?: string; error?: string }>;
+  verifyEmail: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  resendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -98,13 +100,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     email: string,
     password: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; requiresVerification?: boolean; email?: string; error?: string }> => {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Account created — needs email verification before JWT is issued
+        if (data.data?.requiresVerification) {
+          return { success: true, requiresVerification: true, email: data.data.email };
+        }
+        // Fallback: already verified (shouldn't happen in normal flow)
+        const { user: userData } = data.data;
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: data.error || "Registration failed" };
+    } catch {
+      return { success: false, error: "Network error. Please try again." };
+    }
+  };
+
+  const verifyEmail = async (
+    email: string,
+    otp: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, otp }),
       });
       const data = await res.json();
 
@@ -119,7 +156,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
 
-      return { success: false, error: data.error || "Registration failed" };
+      return { success: false, error: data.error || "Verification failed" };
+    } catch {
+      return { success: false, error: "Network error. Please try again." };
+    }
+  };
+
+  const resendOtp = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) return { success: true };
+      return { success: false, error: data.error || "Failed to resend code" };
     } catch {
       return { success: false, error: "Network error. Please try again." };
     }
@@ -139,8 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
-
+    <AuthContext.Provider value={{ user, token, loading, login, register, verifyEmail, resendOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,8 +8,13 @@ import {
     serverErrorResponse,
 } from "@/utils/apiResponse";
 import { loginSchema } from "@/utils/validators";
+import { rateLimit, getClientIp } from "@/lib/rateLimiter";
 
 export async function POST(req: NextRequest) {
+    // Rate limit: 5 login attempts per 15 minutes per IP
+    const limited = rateLimit(getClientIp(req), "login", { limit: 5, windowMs: 15 * 60_000 });
+    if (limited) return limited;
+
     try {
         await connectDB();
 
@@ -33,6 +38,14 @@ export async function POST(req: NextRequest) {
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             return errorResponse("Invalid email or password", 401);
+        }
+
+        // Block login for unverified accounts
+        if (!user.emailVerified) {
+            return errorResponse(
+                "Please verify your email before logging in. Check your inbox for the verification code.",
+                403
+            );
         }
 
         const token = signToken({

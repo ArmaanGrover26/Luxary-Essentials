@@ -7,6 +7,10 @@ export interface IUser extends Document {
     password: string;
     role: "user" | "admin";
     createdAt: Date;
+    // Email verification
+    emailVerified: boolean;
+    emailOtp?: string;
+    emailOtpExpiresAt?: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -37,6 +41,19 @@ const UserSchema = new Schema<IUser>(
             type: String,
             enum: ["user", "admin"],
             default: "user",
+        },
+        // ── Email verification ────────────────────────────────────────
+        emailVerified: {
+            type: Boolean,
+            default: false,
+        },
+        emailOtp: {
+            type: String,
+            select: false, // Never expose OTP hash in queries
+        },
+        emailOtpExpiresAt: {
+            type: Date,
+            select: false,
         },
     },
     { timestamps: true }

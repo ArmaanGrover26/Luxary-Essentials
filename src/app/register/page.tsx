@@ -37,7 +37,12 @@ function RegisterForm() {
     const result = await register(name.trim(), email.trim(), password);
     setLoading(false);
     if (result.success) {
-      router.push(redirect);
+      if (result.requiresVerification) {
+        // Redirect to OTP verification page, passing the email
+        router.push(`/verify-email?email=${encodeURIComponent(result.email ?? email.trim())}&redirect=${encodeURIComponent(redirect)}`);
+      } else {
+        router.push(redirect);
+      }
     } else {
       setError(result.error || "Registration failed.");
     }

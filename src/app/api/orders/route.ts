@@ -12,11 +12,20 @@ import {
 } from "@/utils/apiResponse";
 import { orderSchema } from "@/utils/validators";
 import { sendOrderEmails } from "@/lib/emailService";
+import { rateLimit, getClientIp } from "@/lib/rateLimiter";
 
 // POST /api/orders — Authenticated users can place orders
 export async function POST(req: NextRequest) {
     try {
         const user = await getAuthUser(req);
+
+        // Rate limit per user ID: 5 orders per 10 minutes (stops account-level spam)
+        const userLimited = rateLimit(user.userId, "order:user", { limit: 5, windowMs: 10 * 60_000 });
+        if (userLimited) return userLimited;
+
+        // Rate limit per IP: 10 orders per 10 minutes (stops multi-account spam from same IP)
+        const ipLimited = rateLimit(getClientIp(req), "order:ip", { limit: 10, windowMs: 10 * 60_000 });
+        if (ipLimited) return ipLimited;
         await connectDB();
 
         const body = await req.json();
