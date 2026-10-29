@@ -40,12 +40,18 @@ export async function POST(req: NextRequest) {
             return errorResponse("Invalid email or password", 401);
         }
 
-        // Block login for unverified accounts
-        if (!user.emailVerified) {
+        // Block login for unverified customer accounts (administrators are exempt from email OTP verification)
+        if (user.role !== "admin" && !user.emailVerified) {
             return errorResponse(
                 "Please verify your email before logging in. Check your inbox for the verification code.",
                 403
             );
+        }
+
+        // Auto-verify admin account if not already set
+        if (user.role === "admin" && !user.emailVerified) {
+            user.emailVerified = true;
+            await user.save();
         }
 
         const token = signToken({

@@ -43,6 +43,7 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    emailVerified: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
@@ -61,6 +62,7 @@ async function seedAdmin() {
       admin.name = ADMIN_NAME;
       admin.password = hashedPassword;
       admin.role = "admin";
+      admin.emailVerified = true;
       await admin.save();
       console.log(`✅ Admin account updated successfully!`);
     } else {
@@ -69,6 +71,7 @@ async function seedAdmin() {
         email: ADMIN_EMAIL.toLowerCase().trim(),
         password: hashedPassword,
         role: "admin",
+        emailVerified: true,
       });
       console.log(`✅ Admin account created successfully!`);
     }
