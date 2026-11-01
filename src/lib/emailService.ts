@@ -121,19 +121,23 @@ function userCodHtml(d: OrderEmailData): string {
       <div style="font-family:monospace;font-size:20px;font-weight:700;color:${DARK_COLOR};">#${d.orderId.slice(-6).toUpperCase()}</div>
     </div>
 
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
-      <div style="font-size:13px;font-weight:700;color:#b45309;margin-bottom:6px;">📦 Cash on Delivery — What happens next?</div>
-      <p style="font-size:13px;color:#92400e;line-height:1.7;margin:0;">
-        Our team will <strong>contact you soon</strong> at <strong>${d.shippingAddress.phone}</strong> to collect the payment.
-        Once payment is confirmed, your order will be <strong>packed and shipped</strong> right away!
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:18px 20px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;color:#15803d;margin-bottom:6px;">💬 Pay by WhatsApp — What happens next?</div>
+      <p style="font-size:13px;color:#166534;line-height:1.7;margin:0 0 12px;">
+        Our team will contact you shortly on <strong>WhatsApp / Mobile</strong> at <strong>${d.shippingAddress.phone}</strong> to confirm your order and coordinate payment.
       </p>
+      <div style="background:rgba(22, 101, 52, 0.08);border-left:3px solid #16a34a;padding:10px 14px;border-radius:4px;">
+        <p style="font-size:12px;color:#14532d;line-height:1.6;margin:0;">
+          📦 <strong>Shipping Charges:</strong> Shipping charges will be communicated by our admin team according to the weight of your items and your delivery location prior to dispatch.
+        </p>
+      </div>
     </div>
 
     ${itemsTable(d.items)}
 
     <div style="text-align:right;margin-bottom:20px;">
       <span style="font-family:Georgia,serif;font-size:22px;color:${BRAND_COLOR};font-weight:700;">${formatINR(d.totalAmount)}</span>
-      <span style="font-size:11px;color:#a09990;margin-left:6px;">Cash on Delivery</span>
+      <span style="font-size:11px;color:#a09990;margin-left:6px;">Pay by WhatsApp</span>
     </div>
 
     <div style="background:#faf7f2;border:1px solid #ede5d8;border-radius:8px;padding:16px 20px;">
@@ -195,7 +199,7 @@ function userOnlineHtml(d: OrderEmailData): string {
 function adminHtml(d: OrderEmailData): string {
   const badge =
     d.paymentMethod === "cod"
-      ? `<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">CASH ON DELIVERY</span>`
+      ? `<span style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">PAY BY WHATSAPP</span>`
       : `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">ONLINE PAYMENT</span>`;
 
   return wrapEmail(`
@@ -239,10 +243,10 @@ function adminHtml(d: OrderEmailData): string {
 
     ${
       d.paymentMethod === "cod"
-        ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 18px;">
-            <strong style="font-size:13px;color:#b45309;">⚠️ Action Required:</strong>
-            <p style="font-size:13px;color:#92400e;margin:6px 0 0;line-height:1.6;">
-              This is a COD order. Call the customer at <strong>${d.shippingAddress.phone}</strong> to collect payment before shipping.
+        ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;">
+            <strong style="font-size:13px;color:#15803d;">📲 Action Required:</strong>
+            <p style="font-size:13px;color:#166534;margin:6px 0 0;line-height:1.6;">
+              This order was placed via <strong>Pay by WhatsApp</strong>. Please connect with the customer at <strong>${d.shippingAddress.phone}</strong> to communicate shipping charges (calculated by weight & destination) and collect payment before shipping.
             </p>
           </div>`
         : `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px 18px;">

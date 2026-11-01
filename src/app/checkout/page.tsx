@@ -67,7 +67,7 @@ function StepDot({ num, label, active, done }: { num: number; label: string; act
 
 export default function CheckoutPage() {
   const { items, clearCart, revalidateCart } = useCart();
-  const { user, token } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("address");
@@ -98,10 +98,10 @@ export default function CheckoutPage() {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!user && !token) {
+    if (!authLoading && !user) {
       router.push("/login?redirect=/checkout");
     }
-  }, [user, token, router]);
+  }, [authLoading, user, router]);
 
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
   const total = subtotal;
@@ -117,6 +117,7 @@ export default function CheckoutPage() {
     if (!addr.lastName.trim()) e.lastName = "Required";
     if (!addr.phone.trim() || !/^[6-9]\d{9}$/.test(addr.phone.replace(/\s/g, ""))) e.phone = "Valid 10-digit mobile required";
     if (!addr.line1.trim()) e.line1 = "Required";
+    else if (addr.line1.trim().length < 5) e.line1 = "Must be at least 5 characters";
     if (!addr.city.trim()) e.city = "Required";
     if (!addr.state) e.state = "Required";
     if (!addr.pincode.trim() || !/^\d{6}$/.test(addr.pincode)) e.pincode = "6-digit pincode required";
@@ -137,10 +138,14 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceCOD = async () => {
-    if (!token) return;
+    if (!user) {
+      setPlaceError("You must be logged in to place an order. Please sign in.");
+      return;
+    }
     setPlacing(true);
     setPlaceError("");
     try {
+      const fullAddress = `${addr.line1}${addr.line2 ? `, ${addr.line2}` : ""}, ${addr.state}`.trim();
       const payload = {
         items: items.map((item) => ({
           productId: String(item.id),
@@ -150,16 +155,24 @@ export default function CheckoutPage() {
         paymentMethod: "cod",
         shippingAddress: {
           name: `${addr.firstName} ${addr.lastName}`.trim(),
-          phone: addr.phone,
-          address: addr.line1 + (addr.line2 ? `, ${addr.line2}` : ""),
-          city: addr.city,
-          pincode: addr.pincode,
+          phone: addr.phone.replace(/\s/g, ""),
+          address: fullAddress.length >= 5 ? fullAddress : `${addr.line1}, ${addr.city}, ${addr.state}`,
+          city: addr.city.trim(),
+          pincode: addr.pincode.trim(),
         },
       };
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        credentials: "include",
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -178,6 +191,17 @@ export default function CheckoutPage() {
       setPlacing(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <main style={{ background: "var(--cream)", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: "36px", height: "36px", border: "2px solid var(--beige)", borderTopColor: "var(--gold)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 1rem" }} />
+          <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--warm-gray)", letterSpacing: "0.1em" }}>Loading checkout...</p>
+        </div>
+      </main>
+    );
+  }
 
   // Empty cart guard (not after confirmation)
   if (items.length === 0 && step !== "confirmed") {
@@ -244,32 +268,44 @@ export default function CheckoutPage() {
                 Your order <strong style={{ color: "var(--charcoal)", fontFamily: "monospace" }}>#{confirmedOrder.id.slice(-6).toUpperCase()}</strong> has been placed successfully.
               </p>
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "1.25rem" }}>
-                Payment: <strong>Cash on Delivery</strong> · Total: <strong>₹{confirmedOrder.total.toLocaleString()}</strong>
+                Payment: <strong>Pay by WhatsApp</strong> · Total: <strong>₹{confirmedOrder.total.toLocaleString()}</strong>
               </p>
 
-              {/* Call notice banner */}
+              {/* Call & Shipping notice banner */}
               <div style={{
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
+                background: "#f0fdf4",
+                border: "1px solid #bbf7d0",
                 borderRadius: "12px",
-                padding: "1rem 1.25rem",
+                padding: "1.25rem 1.4rem",
                 marginBottom: "1.5rem",
                 display: "flex",
-                alignItems: "center",
-                gap: "0.85rem",
+                alignItems: "flex-start",
+                gap: "0.9rem",
                 textAlign: "left",
               }}>
-                <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "2px" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.78rem", fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Payment Pending
+                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", fontWeight: 700, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Payment & Shipping Next Steps
                   </div>
-                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "#b45309", marginTop: "2px", lineHeight: 1.5 }}>
-                    Admin will call you on your mobile no. and collect payment before shipping your order.
+                  <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "#166534", marginTop: "4px", lineHeight: 1.6 }}>
+                    Our team will contact you shortly on <strong>WhatsApp / Mobile ({addr.phone})</strong> to verify your order and coordinate payment.
+                  </div>
+                  <div style={{
+                    marginTop: "8px",
+                    padding: "8px 12px",
+                    background: "rgba(22, 101, 52, 0.08)",
+                    borderRadius: "6px",
+                    fontFamily: "'Jost', sans-serif",
+                    fontSize: "0.82rem",
+                    color: "#14532d",
+                    lineHeight: 1.5,
+                  }}>
+                    📦 <strong>Shipping Charges:</strong> Shipping charges will be communicated by our admin team according to the weight of your items and your delivery location prior to dispatch.
                   </div>
                 </div>
               </div>
@@ -440,28 +476,27 @@ export default function CheckoutPage() {
                       </h3>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                        {/* COD option */}
+                        {/* Pay by WhatsApp option */}
                         <button
                           onClick={() => { setPaymentMethod("cod"); setShowOnlineMsg(false); }}
                           style={{
                             display: "flex", alignItems: "center", gap: "1rem",
                             padding: "1.1rem 1.25rem", borderRadius: "10px", cursor: "pointer",
-                            border: `2px solid ${paymentMethod === "cod" ? "var(--gold)" : "var(--beige)"}`,
-                            background: paymentMethod === "cod" ? "rgba(184,157,114,0.06)" : "var(--cream)",
+                            border: `2px solid ${paymentMethod === "cod" ? "#16a34a" : "var(--beige)"}`,
+                            background: paymentMethod === "cod" ? "rgba(22,163,74,0.06)" : "var(--cream)",
                             textAlign: "left", transition: "all 0.2s",
                           }}
                         >
                           <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "var(--ivory)", border: "1px solid var(--beige)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5">
-                              <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="M3 9l2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/>
-                              <line x1="12" y1="3" x2="12" y2="9"/>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
                             </svg>
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.9rem", fontWeight: 600, color: "var(--charcoal)" }}>Cash on Delivery</div>
-                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.75rem", color: "var(--warm-gray)", marginTop: "2px" }}>Pay when your order arrives</div>
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.9rem", fontWeight: 600, color: "var(--charcoal)" }}>Pay by WhatsApp</div>
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.75rem", color: "var(--warm-gray)", marginTop: "2px" }}>Coordinate payment & shipping details directly on WhatsApp</div>
                           </div>
-                          <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: `2px solid ${paymentMethod === "cod" ? "var(--gold)" : "var(--beige)"}`, background: paymentMethod === "cod" ? "var(--gold)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: `2px solid ${paymentMethod === "cod" ? "#16a34a" : "var(--beige)"}`, background: paymentMethod === "cod" ? "#16a34a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             {paymentMethod === "cod" && <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "white" }} />}
                           </div>
                         </button>
@@ -506,7 +541,7 @@ export default function CheckoutPage() {
                               We&apos;re working on this!
                             </div>
                             <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.8rem", color: "#3b82f6", lineHeight: 1.6 }}>
-                              Online payment will be available soon. Please select <strong>Cash on Delivery</strong> to place your order right now.
+                              Online payment will be available soon. Please select <strong>Pay by WhatsApp</strong> to place your order right now.
                             </div>
                           </div>
                         </div>
@@ -552,7 +587,7 @@ export default function CheckoutPage() {
                           </>
                         ) : (
                           <>
-                            Confirm COD Order · ₹{total.toLocaleString()}
+                            Pay by WhatsApp · ₹{total.toLocaleString()}
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                           </>
                         )}
@@ -561,7 +596,7 @@ export default function CheckoutPage() {
 
                     {paymentMethod !== "cod" && paymentMethod !== null && (
                       <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.75rem", color: "var(--warm-gray)", textAlign: "center" }}>
-                        Select Cash on Delivery to place your order.
+                        Select Pay by WhatsApp to place your order.
                       </p>
                     )}
                   </div>
@@ -605,9 +640,11 @@ export default function CheckoutPage() {
                       <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--warm-gray)" }}>Subtotal</span>
                       <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--charcoal)" }}>₹{subtotal.toLocaleString()}</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
                       <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--warm-gray)" }}>Shipping</span>
-                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "var(--warm-gray)" }}>TBD</span>
+                      <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.78rem", color: "var(--warm-gray)", textAlign: "right", lineHeight: 1.4 }}>
+                        Calculated by weight & location
+                      </span>
                     </div>
                   </div>
 
@@ -622,7 +659,7 @@ export default function CheckoutPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                     {[
                       { icon: "🔒", text: "SSL encrypted & secure" },
-                      { icon: "📦", text: "Cash on Delivery available" },
+                      { icon: "💬", text: "Pay by WhatsApp available" },
                       { icon: "🤝", text: "All sales are final" },
                     ].map((b) => (
                       <div key={b.text} style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>

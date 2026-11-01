@@ -12,6 +12,7 @@ import {
 } from "@/utils/apiResponse";
 import { orderSchema } from "@/utils/validators";
 import { sendOrderEmails } from "@/lib/emailService";
+import { sendOrderWhatsApp } from "@/lib/whatsappService";
 import { rateLimit, getClientIp } from "@/lib/rateLimiter";
 
 // POST /api/orders — Authenticated users can place orders
@@ -102,21 +103,27 @@ export async function POST(req: NextRequest) {
         // Fetch user details for email (name + email from DB)
         const dbUser = await User.findById(user.userId).select("name email");
 
-        // Send emails (awaiting ensures serverless platforms like Vercel don't kill the function before emails finish)
+        // Send notifications (awaiting ensures serverless platforms don't kill execution before notifications finish)
         if (dbUser) {
-            try {
-                await sendOrderEmails({
-                    orderId: String(order._id),
-                    customerName: dbUser.name,
-                    customerEmail: dbUser.email,
-                    items: validatedItems.map(({ name, quantity, price }) => ({ name, quantity, price })),
-                    totalAmount,
-                    shippingAddress,
-                    paymentMethod,
-                });
-            } catch (err) {
-                console.error("[Email] Failed to send order emails:", err);
-            }
+            const orderNotificationData = {
+                orderId: String(order._id),
+                customerName: dbUser.name,
+                customerEmail: dbUser.email,
+                customerPhone: shippingAddress.phone,
+                items: validatedItems.map(({ name, quantity, price }) => ({ name, quantity, price })),
+                totalAmount,
+                shippingAddress,
+                paymentMethod,
+            };
+
+            await Promise.allSettled([
+                sendOrderEmails(orderNotificationData).catch((err) => {
+                    console.error("[Email] Failed to send order emails:", err);
+                }),
+                sendOrderWhatsApp(orderNotificationData).catch((err) => {
+                    console.error("[WhatsApp] Failed to send order WhatsApp:", err);
+                }),
+            ]);
         }
 
         return successResponse(order, 201);

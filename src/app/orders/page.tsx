@@ -55,12 +55,15 @@ export default function OrdersPage() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (!user || !token) return;
+    if (!user) return;
     const fetchOrders = async () => {
       try {
         setLoading(true);
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
         const res = await fetch("/api/orders?limit=20", {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+          headers,
         });
         const data = await res.json();
         if (data.success) {
@@ -269,15 +272,15 @@ export default function OrdersPage() {
                           gap: "0.75rem",
                         }}>
                           <div>
-                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, color: order.paymentStatus === "paid" ? "#166534" : "#92400e" }}>
-                              {(!order.razorpayOrderId && !order.paymentId) ? "Cash on Delivery" : "Online Payment"}
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, color: order.paymentStatus === "paid" ? "#166534" : "#15803d" }}>
+                              {(!order.razorpayOrderId && !order.paymentId) ? "Pay by WhatsApp" : "Online Payment"}
                             </div>
-                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: order.paymentStatus === "paid" ? "#15803d" : "#78350f", marginTop: "2px" }}>
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: order.paymentStatus === "paid" ? "#15803d" : "#166534", marginTop: "2px" }}>
                               {order.paymentStatus === "paid"
                                 ? ((!order.razorpayOrderId && !order.paymentId)
-                                    ? "✓ Cash payment received and confirmed by store."
+                                    ? "✓ Payment received and confirmed by store."
                                     : "✓ Paid online via Razorpay.")
-                                : "⏳ Payment Pending: Admin will call you on your mobile no. and collect payment before shipping your order."}
+                                : "💬 Payment & Shipping Pending: Our admin team will connect via WhatsApp to confirm shipping charges (calculated by weight & location) and collect payment."}
                             </div>
                           </div>
                           <span style={{
@@ -297,7 +300,7 @@ export default function OrdersPage() {
                         {/* Total row */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--beige)" }}>
                           <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.78rem", color: "var(--warm-gray)" }}>
-                            Method: <strong style={{ color: "var(--charcoal)" }}>{(!order.razorpayOrderId && !order.paymentId) ? "Cash on Delivery" : "Razorpay Online"}</strong>
+                            Method: <strong style={{ color: "var(--charcoal)" }}>{(!order.razorpayOrderId && !order.paymentId) ? "Pay by WhatsApp" : "Razorpay Online"}</strong>
                           </span>
                           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 600, color: "var(--charcoal)" }}>
                             Total: {formatCurrency(order.totalAmount)}

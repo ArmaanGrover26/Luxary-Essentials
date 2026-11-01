@@ -37,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Restore session on mount via HttpOnly cookie
   const restoreSession = useCallback(async () => {
     try {
-      // Clean up legacy insecure storage if present
       if (typeof window !== "undefined") {
         localStorage.removeItem("le_token");
       }
@@ -48,6 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success && data.data) {
+        if (data.data.token) {
+          setToken(data.data.token);
+        }
         setUser({
           id: data.data._id || data.data.id,
           name: data.data.name,
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       setUser(null);
+      setToken(null);
     } finally {
       setLoading(false);
     }
@@ -80,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success) {
-        const { user: userData } = data.data;
+        const { user: userData, token: authToken } = data.data;
+        if (authToken) {
+          setToken(authToken);
+        }
         setUser({
           id: userData.id,
           name: userData.name,
@@ -116,7 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: true, requiresVerification: true, email: data.data.email };
         }
         // Fallback: already verified (shouldn't happen in normal flow)
-        const { user: userData } = data.data;
+        const { user: userData, token: authToken } = data.data;
+        if (authToken) {
+          setToken(authToken);
+        }
         setUser({
           id: userData.id,
           name: userData.name,
@@ -146,7 +155,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success) {
-        const { user: userData } = data.data;
+        const { user: userData, token: authToken } = data.data;
+        if (authToken) {
+          setToken(authToken);
+        }
         setUser({
           id: userData.id,
           name: userData.name,

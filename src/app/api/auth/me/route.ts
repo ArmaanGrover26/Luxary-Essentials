@@ -19,12 +19,15 @@ export async function GET(req: NextRequest) {
         );
         if (!user) return unauthorizedResponse("User not found");
 
+        const token = req.cookies.get("token")?.value || null;
+
         return successResponse({
             id: user._id,
             name: user.name,
             email: user.email,
             role: user.role,
             createdAt: user.createdAt,
+            token,
         });
     } catch (err: unknown) {
         if (err instanceof Error && err.message.includes("token")) {
