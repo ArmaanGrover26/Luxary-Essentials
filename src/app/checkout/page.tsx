@@ -76,7 +76,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
-  const [confirmedOrder, setConfirmedOrder] = useState<{ id: string; total: number } | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<{ id: string; total: number; items?: Array<{ name: string; qty: number; price: number }> } | null>(null);
   const [showOnlineMsg, setShowOnlineMsg] = useState(false);
 
   // Pre-validate inventory on checkout load
@@ -179,8 +179,9 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (data.success) {
+        const orderItemsSnapshot = items.map((i) => ({ name: i.name, qty: i.qty, price: i.price }));
         clearCart();
-        setConfirmedOrder({ id: data.data._id, total });
+        setConfirmedOrder({ id: data.data._id, total, items: orderItemsSnapshot });
         setStep("confirmed");
       } else {
         setPlaceError(data.error || "Failed to place order. Please try again.");
@@ -190,6 +191,36 @@ export default function CheckoutPage() {
     } finally {
       setPlacing(false);
     }
+  };
+
+  const adminWhatsAppNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER || "919417914064";
+
+  const getCustomerWhatsAppUrl = () => {
+    if (!confirmedOrder) return "#";
+    const shortId = confirmedOrder.id.slice(-6).toUpperCase();
+    const itemList = (confirmedOrder.items || [])
+      .map((i) => `• ${i.name} × ${i.qty} (₹${(i.price * i.qty).toLocaleString("en-IN")})`)
+      .join("\n");
+    const fullAddress = `${addr.line1}${addr.line2 ? `, ${addr.line2}` : ""}, ${addr.city}, ${addr.state} – ${addr.pincode}`;
+
+    const text = `🛍️ *Order Confirmation — Luxury Essentials*
+
+Hi Luxury Essentials! I have placed an order on your website.
+
+📋 *Order ID:* #${shortId}
+👤 *Name:* ${addr.firstName} ${addr.lastName}
+📞 *Mobile:* ${addr.phone}
+
+*Items Ordered:*
+${itemList}
+
+💰 *Subtotal:* ₹${confirmedOrder.total.toLocaleString("en-IN")}
+📍 *Delivery Address:*
+${fullAddress}
+
+Please confirm my order and share the shipping charges & payment details. Thank you! ✨`;
+
+    return `https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(text)}`;
   };
 
   if (authLoading) {
@@ -267,9 +298,41 @@ export default function CheckoutPage() {
               <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.9rem", color: "var(--warm-gray)", lineHeight: 1.8, marginBottom: "0.5rem" }}>
                 Your order <strong style={{ color: "var(--charcoal)", fontFamily: "monospace" }}>#{confirmedOrder.id.slice(-6).toUpperCase()}</strong> has been placed successfully.
               </p>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "1.25rem" }}>
+              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--light-gray)", marginBottom: "1.5rem" }}>
                 Payment: <strong>Pay by WhatsApp</strong> · Total: <strong>₹{confirmedOrder.total.toLocaleString()}</strong>
               </p>
+
+              {/* 1-Click WhatsApp direct chat button for Customer */}
+              <a
+                href={getCustomerWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.65rem",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "1rem 1.5rem",
+                  background: "#25D366",
+                  color: "#ffffff",
+                  borderRadius: "10px",
+                  fontFamily: "'Jost', sans-serif",
+                  fontSize: "0.92rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.03em",
+                  textDecoration: "none",
+                  boxShadow: "0 6px 20px rgba(37, 211, 102, 0.35)",
+                  marginBottom: "1.75rem",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                </svg>
+                Send Order Details on WhatsApp 💬
+              </a>
 
               {/* Call & Shipping notice banner */}
               <div style={{

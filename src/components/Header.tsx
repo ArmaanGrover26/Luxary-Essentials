@@ -1,16 +1,34 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { Heart } from "lucide-react";
+import { Heart, Search, X, Loader2 } from "lucide-react";
+
+interface SearchProductPreview {
+  _id: string;
+  name: string;
+  category: string;
+  price: number;
+  images?: string[];
+}
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Search state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchProductPreview[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const { totalCount: cartCount } = useCart();
   const { wishlistCount } = useWishlist();
   const { user, logout } = useAuth();
@@ -47,6 +65,73 @@ export default function Header() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Autofocus search input when search opens
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [searchOpen]);
+
+  // Handle escape key and click outside to close search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+      }
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    if (searchOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [searchOpen]);
+
+  // Debounced live search preview
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+        const res = await fetch(`/api/products?search=${encodeURIComponent(searchQuery.trim())}&limit=5`);
+        const data = await res.json();
+        if (data.success && data.data?.products) {
+          setSearchResults(data.data.products);
+        } else {
+          setSearchResults([]);
+        }
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+    router.push(`/shop?q=${encodeURIComponent(searchQuery.trim())}`);
+    setSearchOpen(false);
+    setSearchQuery("");
+  };
 
   const navLinks = [
     { label: "Shop", href: "/shop" },
@@ -139,8 +224,24 @@ export default function Header() {
           {/* Right icons */}
           <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
             {/* Search */}
-            <button aria-label="Search" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal)" strokeWidth="1.5">
+            <button
+              onClick={() => setSearchOpen((p) => !p)}
+              aria-label="Search"
+              style={{
+                background: searchOpen ? "var(--ivory)" : "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: searchOpen ? "var(--gold)" : "var(--charcoal)",
+                transition: "all 0.2s",
+              }}
+              title="Search products"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
             </button>
@@ -275,6 +376,143 @@ export default function Header() {
             </button>
           </div>
         </div>
+
+        {/* Search Dropdown / Bar */}
+        {searchOpen && (
+          <div
+            ref={searchContainerRef}
+            style={{
+              borderTop: "1px solid var(--beige)",
+              background: "var(--white)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+              padding: "1rem 2rem 1.25rem",
+              animation: "fadeIn 0.2s ease",
+            }}
+          >
+            <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+              <form onSubmit={handleSearchSubmit} style={{ display: "flex", alignItems: "center", gap: "0.75rem", position: "relative" }}>
+                <Search size={20} color="var(--gold)" style={{ flexShrink: 0 }} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products, resin art, candles, gifts..."
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    outline: "none",
+                    fontSize: "0.95rem",
+                    fontFamily: "'Jost', sans-serif",
+                    color: "var(--charcoal)",
+                    background: "transparent",
+                    padding: "0.5rem 0",
+                  }}
+                />
+                {searchLoading ? (
+                  <Loader2 size={18} color="var(--gold)" style={{ animation: "spin 1s linear infinite" }} />
+                ) : searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--light-gray)", padding: "4px", display: "flex" }}
+                    aria-label="Clear search text"
+                  >
+                    <X size={16} />
+                  </button>
+                ) : null}
+                <button
+                  type="submit"
+                  className="btn-gold"
+                  style={{ padding: "0.5rem 1.25rem", fontSize: "0.75rem", letterSpacing: "0.1em" }}
+                >
+                  Search
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--warm-gray)", padding: "4px", display: "flex" }}
+                  aria-label="Close search bar"
+                >
+                  <X size={20} />
+                </button>
+              </form>
+
+              {/* Instant Search Results Dropdown */}
+              {searchQuery.trim() && (
+                <div style={{ marginTop: "1rem", borderTop: "1px solid var(--beige)", paddingTop: "0.75rem" }}>
+                  {searchResults.length > 0 ? (
+                    <div>
+                      <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.7rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--warm-gray)", marginBottom: "0.5rem" }}>
+                        Quick Results ({searchResults.length})
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {searchResults.map((item) => (
+                          <Link
+                            key={item._id}
+                            href={`/product/${item._id}`}
+                            onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "1rem",
+                              padding: "0.5rem 0.75rem",
+                              borderRadius: "8px",
+                              textDecoration: "none",
+                              transition: "background 0.2s",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--cream)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <div style={{ width: "42px", height: "42px", borderRadius: "6px", overflow: "hidden", position: "relative", background: "var(--beige)", flexShrink: 0 }}>
+                              {item.images?.[0] ? (
+                                <Image src={item.images[0]} alt={item.name} fill sizes="42px" style={{ objectFit: "cover" }} />
+                              ) : null}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", fontWeight: 600, color: "var(--charcoal)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {item.name}
+                              </div>
+                              <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.72rem", color: "var(--warm-gray)", textTransform: "capitalize" }}>
+                                {item.category}
+                              </div>
+                            </div>
+                            <div style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", fontWeight: 600, color: "var(--gold)", flexShrink: 0 }}>
+                              ₹{item.price?.toLocaleString("en-IN")}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleSearchSubmit}
+                        style={{
+                          marginTop: "0.75rem",
+                          width: "100%",
+                          textAlign: "center",
+                          padding: "0.6rem",
+                          background: "var(--cream)",
+                          border: "1px solid var(--beige)",
+                          borderRadius: "8px",
+                          fontFamily: "'Jost', sans-serif",
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          color: "var(--charcoal)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        View all results for &ldquo;{searchQuery}&rdquo; →
+                      </button>
+                    </div>
+                  ) : !searchLoading ? (
+                    <div style={{ padding: "1rem 0", textAlign: "center", fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", color: "var(--warm-gray)" }}>
+                      No products found matching &ldquo;{searchQuery}&rdquo;. Press Enter to explore all items.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Mobile overlay */}
@@ -293,10 +531,49 @@ export default function Header() {
         </button>
 
         <Link href="/" style={{ textDecoration: "none" }} onClick={() => setMenuOpen(false)}>
-          <div className="font-serif" style={{ fontSize: "1.6rem", color: "var(--charcoal)", marginBottom: "3rem" }}>
+          <div className="font-serif" style={{ fontSize: "1.6rem", color: "var(--charcoal)", marginBottom: "2rem" }}>
             Luxury <span style={{ color: "var(--gold)", fontStyle: "italic" }}>Essentials</span>
           </div>
         </Link>
+
+        {/* Mobile Search Form */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const input = form.elements.namedItem("mobileSearch") as HTMLInputElement;
+            if (input && input.value.trim()) {
+              router.push(`/shop?q=${encodeURIComponent(input.value.trim())}`);
+              setMenuOpen(false);
+            }
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "var(--ivory)",
+            border: "1px solid var(--beige)",
+            borderRadius: "10px",
+            padding: "0.65rem 0.85rem",
+            marginBottom: "1.5rem",
+            gap: "0.5rem",
+          }}
+        >
+          <Search size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
+          <input
+            name="mobileSearch"
+            type="text"
+            placeholder="Search products..."
+            style={{
+              border: "none",
+              background: "transparent",
+              outline: "none",
+              fontFamily: "'Jost', sans-serif",
+              fontSize: "0.85rem",
+              color: "var(--charcoal)",
+              width: "100%",
+            }}
+          />
+        </form>
 
         {/* User info in mobile menu */}
         {user && (

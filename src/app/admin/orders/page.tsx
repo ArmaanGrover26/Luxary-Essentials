@@ -173,6 +173,39 @@ export default function AdminOrdersPage() {
     }).format(val);
   };
 
+  const getAdminWhatsAppUrl = (o: AdminOrder) => {
+    const rawPhone = o.shippingAddress?.phone || "";
+    const cleanPhone = rawPhone.replace(/\D/g, "");
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    if (!formattedPhone) return "#";
+
+    const shortId = o._id.slice(-6).toUpperCase();
+    const itemsText = o.items
+      ?.map((item: OrderItem) => `• ${item.productId?.name || "Product"} × ${item.quantity} (₹${(item.quantity * item.price).toLocaleString("en-IN")})`)
+      .join("\n") || "";
+
+    const customerName = o.shippingAddress?.name || o.userId?.name || "Valued Customer";
+    const address = `${o.shippingAddress?.address || ""}, ${o.shippingAddress?.city || ""} – ${o.shippingAddress?.pincode || ""}`;
+
+    const message = `Hello ${customerName}! 👋
+
+Thank you for placing your order with *Luxury Essentials*.
+
+📋 *Order ID:* #${shortId}
+
+*Items Ordered:*
+${itemsText}
+
+💰 *Subtotal:* ₹${o.totalAmount.toLocaleString("en-IN")}
+📍 *Delivery Address:*
+${address}
+
+📦 *Shipping Details:*
+We are calculating the shipping charges based on your delivery location and package weight. We will update you with the final amount and payment options shortly! ✨`;
+
+    return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+  };
+
   const statusTabs = [
     { label: "All Orders", value: "" },
     { label: "Processing", value: "processing", icon: Clock },
@@ -435,16 +468,33 @@ export default function AdminOrdersPage() {
                     </td>
 
                     <td style={{ padding: "0.9rem 1.25rem", textAlign: "right" }}>
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        style={{
-                          padding: "6px", border: "1px solid #ede5d8", background: "#ffffff",
-                          borderRadius: "8px", color: "#6b6560", cursor: "pointer", display: "inline-flex",
-                        }}
-                        title="View order details"
-                      >
-                        <Eye size={16} />
-                      </button>
+                      <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                        <a
+                          href={getAdminWhatsAppUrl(order)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            padding: "6px 8px", border: "1px solid #bbf7d0", background: "#f0fdf4",
+                            borderRadius: "8px", color: "#16a34a", display: "inline-flex",
+                            alignItems: "center", justifyContent: "center", textDecoration: "none",
+                          }}
+                          title="Chat with Customer on WhatsApp"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                          </svg>
+                        </a>
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          style={{
+                            padding: "6px", border: "1px solid #ede5d8", background: "#ffffff",
+                            borderRadius: "8px", color: "#6b6560", cursor: "pointer", display: "inline-flex",
+                          }}
+                          title="View order details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -670,18 +720,45 @@ export default function AdminOrdersPage() {
                 {selectedOrder.paymentStatus === "pending" && (
                   <div style={{
                     marginTop: "10px",
-                    padding: "0.6rem 0.85rem",
+                    padding: "0.75rem 0.95rem",
                     borderRadius: "8px",
-                    background: "#fffbeb",
-                    border: "1px solid #fde68a",
-                    fontSize: "0.76rem",
-                    color: "#92400e",
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    fontSize: "0.78rem",
+                    color: "#166534",
                     display: "flex",
-                    alignItems: "center",
+                    flexDirection: "column",
                     gap: "8px",
                   }}>
-                    <span style={{ fontSize: "1rem" }}>📞</span>
-                    <span><strong>Workflow Action:</strong> Admin will call customer on <strong>{selectedOrder.shippingAddress?.phone || "mobile no."}</strong> and collect payment before shipping this order. Click <strong>Mark as Paid</strong> above once payment is collected.</span>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "1rem" }}>💬</span>
+                        <span><strong>Workflow Action:</strong> Coordinate with customer on <strong>{selectedOrder.shippingAddress?.phone || "mobile no."}</strong> to communicate shipping charges & collect payment.</span>
+                      </div>
+                      <a
+                        href={getAdminWhatsAppUrl(selectedOrder)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: "0.45rem 0.85rem",
+                          background: "#25D366",
+                          color: "#ffffff",
+                          borderRadius: "8px",
+                          fontSize: "0.76rem",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          textDecoration: "none",
+                          boxShadow: "0 2px 8px rgba(37, 211, 102, 0.25)",
+                        }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                        </svg>
+                        Chat with Customer on WhatsApp
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>

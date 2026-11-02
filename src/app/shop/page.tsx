@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { ShoppingBag, Star, Package, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingBag, Star, Package, Sparkles, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { ORDERED_CATEGORIES, getCategoryLabel } from "@/config/categories";
 import ProductCardImage from "@/components/ui/ProductCardImage";
 import FavoriteButton from "@/components/ui/FavoriteButton";
@@ -57,6 +57,9 @@ function ShopPageContent() {
   const [products, setProducts] = useState<DBProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("");
+  const [searchQuery, setSearchQuery] = useState(
+    searchParams.get("q") || searchParams.get("search") || ""
+  );
   const [activeFestival, setActiveFestival] = useState<ActiveFestival | null>(null);
   const [addedIds, setAddedIds] = useState<string[]>([]);
   const { addToCart, getItemCartQty, setCartNotification } = useCart();
@@ -80,7 +83,7 @@ function ShopPageContent() {
     fetchActiveFestival();
   }, []);
 
-  // Sync category with URL search parameters (?category= or ?cat=)
+  // Sync category & search query with URL search parameters (?category=, ?cat=, ?q=, ?search=)
   useEffect(() => {
     const cat = searchParams.get("category") || searchParams.get("cat");
     if (cat) {
@@ -94,6 +97,9 @@ function ShopPageContent() {
         setActiveCategory(cat);
       }
     }
+
+    const q = searchParams.get("q") || searchParams.get("search") || "";
+    setSearchQuery(q);
   }, [searchParams, activeFestival]);
 
   // Dynamic categories state initialized with static list for instant render
@@ -183,7 +189,7 @@ function ShopPageContent() {
     return list;
   }, [activeFestival, dynamicCategories]);
 
-  // Fetch products based on active category
+  // Fetch products based on active category and search query
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -192,6 +198,7 @@ function ShopPageContent() {
       query.set("sort", "createdAt");
       query.set("order", "desc");
       if (activeCategory) query.set("category", activeCategory);
+      if (searchQuery.trim()) query.set("search", searchQuery.trim());
 
       const res = await fetch(`/api/products?${query.toString()}`);
       const data = await res.json();
@@ -206,7 +213,16 @@ function ShopPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [activeCategory]);
+  }, [activeCategory, searchQuery]);
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q");
+    params.delete("search");
+    const newQuery = params.toString();
+    router.push(newQuery ? `/shop?${newQuery}` : "/shop");
+  };
 
   useEffect(() => {
     fetchProducts();
@@ -504,6 +520,59 @@ function ShopPageContent() {
               </p>
             </div>
           )}
+          {/* Active Search Banner */}
+          {searchQuery && (
+            <div
+              style={{
+                background: "var(--white)",
+                border: "1px solid var(--beige)",
+                borderRadius: "10px",
+                padding: "0.85rem 1.25rem",
+                marginBottom: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "0.75rem",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Search size={18} color="var(--gold)" />
+                <span style={{ fontSize: "0.88rem", color: "var(--charcoal)", fontFamily: "'Jost', sans-serif" }}>
+                  Search results for <strong style={{ color: "var(--charcoal)" }}>&quot;{searchQuery}&quot;</strong>
+                  {!loading && ` (${products.length} found)`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--beige)",
+                  borderRadius: "6px",
+                  padding: "0.35rem 0.75rem",
+                  fontSize: "0.75rem",
+                  color: "var(--warm-gray)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--charcoal)";
+                  e.currentTarget.style.color = "var(--charcoal)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--beige)";
+                  e.currentTarget.style.color = "var(--warm-gray)";
+                }}
+              >
+                Clear search ✕
+              </button>
+            </div>
+          )}
+
           <p
             className="shop-count-text"
             style={{
@@ -833,30 +902,76 @@ function ShopPageContent() {
                 border: "1px solid var(--beige)",
               }}
             >
-              <Package
-                size={48}
-                style={{ color: "var(--gold)", marginBottom: "1rem" }}
-              />
-              <h2
-                className="font-serif"
-                style={{
-                  fontSize: "1.5rem",
-                  color: "var(--charcoal)",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                No Products Available Yet
-              </h2>
-              <p
-                style={{
-                  fontSize: "0.875rem",
-                  color: "var(--warm-gray)",
-                  maxWidth: "400px",
-                  margin: "0 auto",
-                }}
-              >
-                Products added via the Admin Portal will automatically appear here.
-              </p>
+              {searchQuery ? (
+                <>
+                  <Search
+                    size={48}
+                    style={{ color: "var(--gold)", marginBottom: "1rem" }}
+                  />
+                  <h2
+                    className="font-serif"
+                    style={{
+                      fontSize: "1.5rem",
+                      color: "var(--charcoal)",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    No Products Found
+                  </h2>
+                  <p
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "var(--warm-gray)",
+                      maxWidth: "400px",
+                      margin: "0 auto 1.5rem",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    We couldn&apos;t find any products matching &quot;{searchQuery}&quot;. Try checking for typos or searching for a different keyword.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="btn-gold"
+                    style={{
+                      padding: "0.6rem 1.5rem",
+                      fontSize: "0.82rem",
+                      borderRadius: "8px",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Clear Search &amp; View All
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Package
+                    size={48}
+                    style={{ color: "var(--gold)", marginBottom: "1rem" }}
+                  />
+                  <h2
+                    className="font-serif"
+                    style={{
+                      fontSize: "1.5rem",
+                      color: "var(--charcoal)",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    No Products Available Yet
+                  </h2>
+                  <p
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "var(--warm-gray)",
+                      maxWidth: "400px",
+                      margin: "0 auto",
+                    }}
+                  >
+                    Products added via the Admin Portal will automatically appear here.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -84,6 +84,14 @@ export default function OrdersPage() {
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
+  const adminWhatsAppNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER || "919417914064";
+
+  const getCustomerChatUrl = (order: Order) => {
+    const shortId = order._id.slice(-6).toUpperCase();
+    const msg = `Hi Luxury Essentials! I am reaching out regarding my Order #${shortId}. Could you please share the shipping charges and payment details?`;
+    return `https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(msg)}`;
+  };
+
   if (authLoading) {
     return <div style={{ minHeight: "100vh", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ fontFamily: "'Jost', sans-serif", color: "var(--warm-gray)" }}>Loading...</div>
@@ -282,6 +290,30 @@ export default function OrdersPage() {
                                     : "✓ Paid online via Razorpay.")
                                 : "💬 Payment & Shipping Pending: Our admin team will connect via WhatsApp to confirm shipping charges (calculated by weight & location) and collect payment."}
                             </div>
+                            {order.paymentStatus === "pending" && !order.razorpayOrderId && (
+                              <div style={{ marginTop: "6px" }}>
+                                <a
+                                  href={getCustomerChatUrl(order)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    fontSize: "0.75rem",
+                                    color: "#16a34a",
+                                    fontWeight: 600,
+                                    textDecoration: "underline",
+                                    textUnderlineOffset: "3px",
+                                  }}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                                  </svg>
+                                  Chat with Us on WhatsApp
+                                </a>
+                              </div>
+                            )}
                           </div>
                           <span style={{
                             padding: "0.25rem 0.65rem",

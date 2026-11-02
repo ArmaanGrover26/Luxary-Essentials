@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 12)));
         const category = searchParams.get("category");
         const festivalId = searchParams.get("festivalId");
-        const search = searchParams.get("search");
+        const search = searchParams.get("search") || searchParams.get("q");
         const minPrice = searchParams.get("minPrice");
         const maxPrice = searchParams.get("maxPrice");
 
@@ -57,7 +57,15 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        if (search) query.$text = { $search: search };
+        if (search && search.trim()) {
+            const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const regex = new RegExp(escaped, "i");
+            query.$or = [
+                { name: regex },
+                { description: regex },
+                { category: regex },
+            ];
+        }
         if (minPrice || maxPrice) {
             query.price = {};
             if (minPrice) query.price.$gte = Number(minPrice);
