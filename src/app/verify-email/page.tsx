@@ -73,7 +73,11 @@ function VerifyEmailForm() {
     const result = await verifyEmail(email, otp);
     setLoading(false);
     if (result.success) {
-      router.push(redirect);
+      const params = new URLSearchParams();
+      params.set("verified", "true");
+      if (email) params.set("email", email);
+      if (redirect && redirect !== "/") params.set("redirect", redirect);
+      router.push(`/login?${params.toString()}`);
     } else {
       setError(result.error || "Verification failed.");
       setDigits(["", "", "", "", "", ""]);

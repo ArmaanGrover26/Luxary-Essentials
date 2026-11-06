@@ -1,8 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import {
-    successResponse,
     errorResponse,
     serverErrorResponse,
 } from "@/utils/apiResponse";
@@ -10,6 +10,7 @@ import { registerSchema } from "@/utils/validators";
 import { rateLimit, getClientIp } from "@/lib/rateLimiter";
 import { generateOtp } from "@/lib/otp";
 import { sendOtpEmail } from "@/lib/otpEmailService";
+import { signPendingRegistrationToken } from "@/lib/jwt";
 
 export async function POST(req: NextRequest) {
     // Rate limit: 10 signup attempts per hour per IP
@@ -29,40 +30,56 @@ export async function POST(req: NextRequest) {
         }
 
         const { name, email, password } = parsed.data;
+        const normalizedEmail = email.trim().toLowerCase();
 
         // Check if email already exists
-        const existing = await User.findOne({ email });
+        const existing = await User.findOne({ email: normalizedEmail });
         if (existing) {
-            // If the account exists but is unverified, allow re-sending OTP
-            if (!existing.emailVerified) {
-                const { otp, hash } = await generateOtp();
-                await User.findByIdAndUpdate(existing._id, {
-                    emailOtp: hash,
-                    emailOtpExpiresAt: new Date(Date.now() + 10 * 60_000),
-                });
-                await sendOtpEmail(email, existing.name, otp);
-                return successResponse(
-                    { requiresVerification: true, email },
-                    200
-                );
+            if (existing.emailVerified) {
+                return errorResponse("Email already registered", 409);
             }
-            return errorResponse("Email already registered", 409);
+            // Remove any legacy unverified document so new clean registration takes over
+            await User.deleteOne({ _id: existing._id });
         }
 
-        // Create user (password hashed by pre-save hook)
-        const user = await User.create({ name, email, password, emailVerified: false });
+        // Hash password and generate OTP
+        const passwordHash = await bcrypt.hash(password, 12);
+        const { otp, hash: otpHash } = await generateOtp();
 
-        // Generate OTP and store hash
-        const { otp, hash } = await generateOtp();
-        user.emailOtp = hash;
-        user.emailOtpExpiresAt = new Date(Date.now() + 10 * 60_000); // 10 minutes
-        await user.save();
+        // Send OTP via Gmail SMTP (dedicated OTP account)
+        await sendOtpEmail(normalizedEmail, name.trim(), otp);
 
-        // Send OTP via Gmail SMTP (dedicated account, doesn't touch Brevo or Resend quota)
-        await sendOtpEmail(email, name, otp);
+        // Sign a 10-minute stateless token containing the pending registration data
+        // NOTE: Nothing is saved in the User database yet!
+        // The account will ONLY be created once the user successfully verifies the OTP.
+        const pendingToken = signPendingRegistrationToken({
+            name: name.trim(),
+            email: normalizedEmail,
+            passwordHash,
+            otpHash,
+        });
 
-        // Do NOT issue JWT yet — user must verify email first
-        return successResponse({ requiresVerification: true, email }, 201);
+        const response = NextResponse.json(
+            {
+                success: true,
+                data: {
+                    requiresVerification: true,
+                    email: normalizedEmail,
+                    pendingToken,
+                },
+            },
+            { status: 200 }
+        );
+
+        response.cookies.set("pending_verification", pendingToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 10 * 60, // 10 minutes
+            path: "/",
+        });
+
+        return response;
     } catch (err) {
         console.error("[POST /api/auth/register]", err);
         return serverErrorResponse();

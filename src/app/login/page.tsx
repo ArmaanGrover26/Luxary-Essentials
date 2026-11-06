@@ -10,8 +10,9 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
   const isResetSuccess = searchParams.get("reset") === "success";
+  const isVerified = searchParams.get("verified") === "true";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,6 +77,17 @@ function LoginForm() {
               fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "#166534",
             }}>
               Password updated successfully! Please sign in with your new password.
+            </div>
+          )}
+
+          {/* Success notice if redirected from email verification */}
+          {isVerified && !error && (
+            <div style={{
+              background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px",
+              padding: "0.75rem 1rem", marginBottom: "1.5rem",
+              fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "#166534",
+            }}>
+              Email verified successfully! Please sign in with your password to continue.
             </div>
           )}
 

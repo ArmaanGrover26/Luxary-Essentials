@@ -85,6 +85,10 @@ const UserSchema = new Schema<IUser>(
 // Hash password before saving — using function declaration for correct `this` binding
 UserSchema.pre<IUser>("save", async function () {
     if (!this.isModified("password")) return;
+    // Prevent double-hashing if the password is already a valid bcrypt hash
+    if (typeof this.password === "string" && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(this.password)) {
+        return;
+    }
     this.password = await bcrypt.hash(this.password, 12);
 });
 

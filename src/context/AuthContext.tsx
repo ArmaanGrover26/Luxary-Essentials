@@ -155,16 +155,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success) {
-        const { user: userData, token: authToken } = data.data;
-        if (authToken) {
-          setToken(authToken);
-        }
-        setUser({
-          id: userData.id,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-        });
         return { success: true };
       }
 
@@ -181,11 +171,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
       if (data.success) return { success: true };
-      return { success: false, error: data.error || "Failed to resend code" };
+      return { success: false, error: data.error || data.message || "Failed to resend code" };
     } catch {
       return { success: false, error: "Network error. Please try again." };
     }
