@@ -11,6 +11,11 @@ export interface IUser extends Document {
     emailVerified: boolean;
     emailOtp?: string;
     emailOtpExpiresAt?: Date;
+    // Password reset
+    resetPasswordOtp?: string;
+    resetPasswordExpiresAt?: Date;
+    resetPasswordAttempts?: number;
+    resetPasswordLastRequestedAt?: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -52,6 +57,24 @@ const UserSchema = new Schema<IUser>(
             select: false, // Never expose OTP hash in queries
         },
         emailOtpExpiresAt: {
+            type: Date,
+            select: false,
+        },
+        // ── Password reset ─────────────────────────────────────────────
+        resetPasswordOtp: {
+            type: String,
+            select: false,
+        },
+        resetPasswordExpiresAt: {
+            type: Date,
+            select: false,
+        },
+        resetPasswordAttempts: {
+            type: Number,
+            default: 0,
+            select: false,
+        },
+        resetPasswordLastRequestedAt: {
             type: Date,
             select: false,
         },

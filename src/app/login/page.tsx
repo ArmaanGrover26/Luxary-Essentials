@@ -9,6 +9,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
+  const isResetSuccess = searchParams.get("reset") === "success";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,6 +68,17 @@ function LoginForm() {
             </h1>
           </div>
 
+          {/* Success notice if redirected from password reset */}
+          {isResetSuccess && !error && (
+            <div style={{
+              background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px",
+              padding: "0.75rem 1rem", marginBottom: "1.5rem",
+              fontFamily: "'Jost', sans-serif", fontSize: "0.82rem", color: "#166534",
+            }}>
+              Password updated successfully! Please sign in with your new password.
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div style={{
@@ -104,9 +116,24 @@ function LoginForm() {
 
             {/* Password */}
             <div>
-              <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.62rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--warm-gray)", display: "block", marginBottom: "0.4rem" }}>
-                Password
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "0.62rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--warm-gray)", display: "block" }}>
+                  Password
+                </label>
+                <Link
+                  href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+                  style={{
+                    fontFamily: "'Jost', sans-serif",
+                    fontSize: "0.72rem",
+                    color: "var(--gold)",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div style={{ position: "relative" }}>
                 <input
                   type={showPass ? "text" : "password"}

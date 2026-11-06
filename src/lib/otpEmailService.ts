@@ -109,3 +109,58 @@ export async function sendOtpEmail(
   }
 }
 
+/**
+ * Sends a password reset 6-digit OTP email to the user via Gmail SMTP.
+ */
+export async function sendPasswordResetOtpEmail(
+  email: string,
+  name: string,
+  otp: string
+): Promise<void> {
+  if (!process.env.OTP_GMAIL_USER || !process.env.OTP_GMAIL_APP_PASSWORD) {
+    console.warn("[OTP Email] OTP_GMAIL_USER or OTP_GMAIL_APP_PASSWORD not set in .env.local. Skipping password reset OTP email.");
+    return;
+  }
+
+  const html = wrapOtpEmail(`
+    <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:400;color:${DARK_COLOR};margin:0 0 12px;">
+      Reset your password
+    </h1>
+    <p style="font-size:13px;color:#6b6560;line-height:1.8;margin:0 0 28px;">
+      Hi <strong style="color:${DARK_COLOR};">${name}</strong>,<br/>
+      We received a request to reset the password for your ${BRAND_NAME} account.
+      Use the verification code below to set a new password. This code expires in <strong>10 minutes</strong>.
+    </p>
+
+    <div style="background:#faf7f2;border:1px solid #ede5d8;border-radius:10px;padding:28px;text-align:center;margin-bottom:28px;">
+      <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#a09990;margin-bottom:12px;font-weight:600;">
+        Password reset code
+      </div>
+      <div style="font-family:monospace;font-size:40px;font-weight:700;letter-spacing:0.25em;color:${DARK_COLOR};">
+        ${otp}
+      </div>
+    </div>
+
+    <p style="font-size:12px;color:#a09990;line-height:1.7;margin:0 0 12px;">
+      For your security, please do not share this code with anyone.
+    </p>
+    <p style="font-size:12px;color:#a09990;line-height:1.7;margin:0;">
+      If you did not request a password reset, you can safely ignore this email — your existing password remains unchanged.
+    </p>
+  `);
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${process.env.OTP_GMAIL_USER}>`,
+      to: email,
+      subject: `${otp} is your ${BRAND_NAME} password reset code`,
+      html,
+    });
+    console.log(`[OTP Email] ✓ Password reset OTP sent to ${email}`);
+  } catch (err) {
+    console.error("[OTP Email] ✗ Failed to send password reset OTP email:", err);
+    throw err;
+  }
+}
+
